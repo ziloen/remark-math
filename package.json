@@ -1,0 +1,68 @@
+{
+  "name": "@ziloen/remark-math",
+  "version": "0.1.0",
+  "description": "Remark plugin to parse and stringify math with dollar and LaTeX delimiters",
+  "keywords": [
+    "latex",
+    "markdown",
+    "math",
+    "mdast",
+    "remark",
+    "unified"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "dist/",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "check": "npm run verify && publint && node scripts/check-package.mjs",
+    "verify": "npm run typecheck && npm run test && npm run coverage && npm run build",
+    "prepack": "npm run check"
+  },
+  "dependencies": {
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "devlop": "^1.1.0",
+    "longest-streak": "^3.1.0",
+    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-to-markdown": "^2.1.2",
+    "micromark-factory-space": "^2.0.1",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-symbol": "^2.0.1",
+    "micromark-util-types": "^2.0.2",
+    "unified": "^11.0.5"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "micromark": "^4.0.2",
+    "publint": "^0.3.21",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "remark-stringify": "^11.0.0",
+    "tsdown": "^0.22.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,16 @@
+@ziloen/remark-math includes source derived from the following MIT-licensed
+projects:
+
+- remark-math, copyright Junyoung Choi and Titus Wormer
+  https://github.com/remarkjs/remark-math
+- mdast-util-math, copyright Titus Wormer
+  https://github.com/syntax-tree/mdast-util-math
+- micromark-extension-math, copyright Titus Wormer
+  https://github.com/micromark/micromark-extension-math
+- vscode-markdown-it-katex boundary behavior, copyright Microsoft Corporation
+  https://github.com/microsoft/vscode-markdown-it-katex
+
+Each upstream project is distributed under the MIT License. Their copyright
+and permission notices are retained by this attribution and the repository
+history. The package itself is distributed under the LICENSE file in this
+repository.
