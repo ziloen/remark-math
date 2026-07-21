@@ -1,4 +1,5 @@
-import type {Data, Literal} from 'mdast'
+import type {Literal} from 'mdast'
+import type {Data} from 'unist'
 
 export interface Options {
   singleDollarTextMath?: boolean
@@ -27,11 +28,6 @@ declare module 'mdast' {
 
   interface PhrasingContentMap {
     inlineMath: InlineMath
-  }
-
-  interface RootContentMap {
-    inlineMath: InlineMath
-    math: Math
   }
 }
 

@@ -14,14 +14,19 @@ export default function remarkMath(
 ): undefined {
   const settings = options ?? emptyOptions
   const data = this.data()
-  const micromarkExtensions =
-    data.micromarkExtensions ?? (data.micromarkExtensions = [])
-  const fromMarkdownExtensions =
-    data.fromMarkdownExtensions ?? (data.fromMarkdownExtensions = [])
-  const toMarkdownExtensions =
-    data.toMarkdownExtensions ?? (data.toMarkdownExtensions = [])
 
-  micromarkExtensions.push(math(settings))
-  fromMarkdownExtensions.push(mathFromMarkdown(settings))
-  toMarkdownExtensions.push(mathToMarkdown(settings))
+  add('micromarkExtensions', math(settings))
+  add('fromMarkdownExtensions', mathFromMarkdown(settings))
+  add('toMarkdownExtensions', mathToMarkdown(settings))
+
+  function add(
+    field:
+      | 'micromarkExtensions'
+      | 'fromMarkdownExtensions'
+      | 'toMarkdownExtensions',
+    value: unknown
+  ): void {
+    const list = (data[field] ?? (data[field] = [])) as unknown[]
+    list.push(value)
+  }
 }

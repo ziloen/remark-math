@@ -1,12 +1,12 @@
 import {ok as assert} from 'devlop'
 import type {Element, ElementContent} from 'hast'
 import type {
-  Nodes,
+  Content,
   Paragraph,
   Parent,
   PhrasingContent,
   Root,
-  RootContent
+  TopLevelContent
 } from 'mdast'
 import type {
   CompileContext,
@@ -18,6 +18,7 @@ import type {
   Handle as ToMarkdownHandle,
   Options as ToMarkdownExtension
 } from 'mdast-util-to-markdown'
+import {patternCompile} from 'mdast-util-to-markdown/lib/util/pattern-compile.js'
 import type {Token} from 'micromark-util-types'
 import {longestStreak} from 'longest-streak'
 import type {InlineMath, Math, Options} from '../types.js'
@@ -88,9 +89,9 @@ const exitMathFlowMeta: Handle = function (): void {
 }
 
 const exitMathFlowFence: Handle = function (): void {
-  if (this.data.mathFlowInside) return
+  if (this.getData('mathFlowInside')) return
   this.buffer()
-  this.data.mathFlowInside = true
+  this.setData('mathFlowInside', true)
 }
 
 const exitMathFlow: Handle = function (token): void {
@@ -103,7 +104,7 @@ const exitMathFlow: Handle = function (token): void {
   const code = data.hChildren?.[0]
   assert(code?.type === 'element' && code.tagName === 'code')
   code.children.push({type: 'text', value})
-  this.data.mathFlowInside = undefined
+  this.setData('mathFlowInside')
 }
 
 export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
@@ -183,7 +184,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
     while (++index < state.unsafe.length) {
       const pattern = state.unsafe[index]
       if (!pattern.atBreak) continue
-      const expression = state.compilePattern(pattern)
+      const expression = patternCompile(pattern)
       let match: RegExpExecArray | null
       while ((match = expression.exec(value))) {
         let position = match.index
@@ -270,16 +271,16 @@ function transformMath(options?: Options | null): Transform {
 }
 
 function transformParent(parent: Parent, displayMathInText: boolean): void {
-  const children: Nodes[] = []
+  const children: Content[] = []
 
-  for (const child of parent.children as Nodes[]) {
+  for (const child of parent.children as Content[]) {
     if (child.type === 'paragraph') {
       children.push(...splitParagraph(child, displayMathInText))
       continue
     }
 
     if ('children' in child) transformParent(child, displayMathInText)
-    cleanNested(child as RootContent | PhrasingContent)
+    cleanNested(child)
     children.push(child)
   }
 
@@ -297,16 +298,16 @@ function visitPhrasingParents(node: Parent): void {
     return
   }
 
-  for (const child of node.children as Nodes[]) {
+  for (const child of node.children as Content[]) {
     if ('children' in child) visitPhrasingParents(child)
   }
 }
 
-function processHtmlChildren(children: Nodes[], tags: string[]): Nodes[] {
-  const result: Nodes[] = []
+function processHtmlChildren(children: Content[], tags: string[]): Content[] {
+  const result: Content[] = []
 
   for (const child of children) {
-    let next: Nodes = child
+    let next: Content = child
 
     if (child.type === 'html') {
       updateHtmlStack(child.value, tags)
@@ -319,7 +320,7 @@ function processHtmlChildren(children: Nodes[], tags: string[]): Nodes[] {
       }
     } else if ('children' in child) {
       child.children = processHtmlChildren(
-        child.children as Nodes[],
+        child.children as Content[],
         tags
       ) as typeof child.children
     }
@@ -371,8 +372,8 @@ function updateHtmlStack(value: string, tags: string[]): void {
 function splitParagraph(
   paragraph: Paragraph,
   displayMathInText: boolean
-): RootContent[] {
-  const result: RootContent[] = []
+): TopLevelContent[] {
+  const result: TopLevelContent[] = []
   let phrasing: PhrasingContent[] = []
   let stripLeadingBoundary = false
 
@@ -480,7 +481,7 @@ function promote(node: InlineMath): Math {
   }
 }
 
-function cleanNested(node: RootContent | PhrasingContent): void {
+function cleanNested(node: Content): void {
   if (node.type === 'inlineMath') {
     const data = node.data as InternalMathData
     delete data._displayMath

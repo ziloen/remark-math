@@ -1,6 +1,7 @@
 import {ok as assert} from 'devlop'
 import {markdownLineEnding} from 'micromark-util-character'
-import {codes, types} from 'micromark-util-symbol'
+import {codes} from 'micromark-util-symbol/codes.js'
+import {types} from 'micromark-util-symbol/types.js'
 import type {
   Construct,
   Effects,
@@ -41,14 +42,14 @@ export function mathText(options?: Options | null): Construct {
 
     return start
 
-    function start(code: number | null): State | undefined {
+    function start(code: number | null): State | void {
       assert(code === codes.dollarSign)
       container = effects.enter('mathText')
       opener = effects.enter('mathTextSequence')
       return open(code)
     }
 
-    function open(code: number | null): State | undefined {
+    function open(code: number | null): State | void {
       if (code === codes.dollarSign) {
         effects.consume(code)
         sizeOpen++
@@ -67,7 +68,7 @@ export function mathText(options?: Options | null): Construct {
       return between(code)
     }
 
-    function between(code: number | null): State | undefined {
+    function between(code: number | null): State | void {
       if (code === codes.eof) return nok(code)
 
       if (code === codes.dollarSign) {
@@ -109,7 +110,7 @@ export function mathText(options?: Options | null): Construct {
       return data(code)
     }
 
-    function data(code: number | null): State | undefined {
+    function data(code: number | null): State | void {
       if (
         code === codes.eof ||
         code === codes.space ||
@@ -126,7 +127,7 @@ export function mathText(options?: Options | null): Construct {
       return data
     }
 
-    function close(code: number | null): State | undefined {
+    function close(code: number | null): State | void {
       if (code === codes.dollarSign) {
         effects.consume(code)
         sizeClose++
@@ -181,7 +182,7 @@ export function latexMathText(display: boolean): Construct {
 
     return start
 
-    function start(code: number | null): State | undefined {
+    function start(code: number | null): State | void {
       assert(code === codes.backslash)
       effects.enter(containerType)
       effects.enter(sequenceType)
@@ -189,7 +190,7 @@ export function latexMathText(display: boolean): Construct {
       return openMarker
     }
 
-    function openMarker(code: number | null): State | undefined {
+    function openMarker(code: number | null): State | void {
       const expected = display
         ? codes.leftSquareBracket
         : codes.leftParenthesis
@@ -199,7 +200,7 @@ export function latexMathText(display: boolean): Construct {
       return content
     }
 
-    function content(code: number | null): State | undefined {
+    function content(code: number | null): State | void {
       if (code === codes.eof) return nok(code)
 
       if (code === codes.backslash) {
@@ -231,7 +232,7 @@ export function latexMathText(display: boolean): Construct {
       return data(code)
     }
 
-    function data(code: number | null): State | undefined {
+    function data(code: number | null): State | void {
       if (
         code === codes.eof ||
         code === codes.space ||
@@ -248,7 +249,7 @@ export function latexMathText(display: boolean): Construct {
       return data
     }
 
-    function afterSlash(code: number | null): State | undefined {
+    function afterSlash(code: number | null): State | void {
       if (code === closeMarker && slashesBefore % 2 === 0) {
         if (!hasContent) return nok(code)
         effects.consume(code)

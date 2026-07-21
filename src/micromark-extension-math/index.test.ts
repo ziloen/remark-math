@@ -1,4 +1,6 @@
-import {parse, postprocess, preprocess} from 'micromark'
+import {parse} from 'micromark/lib/parse.js'
+import {postprocess} from 'micromark/lib/postprocess.js'
+import {preprocess} from 'micromark/lib/preprocess.js'
 import type {Event} from 'micromark-util-types'
 import {describe, expect, it} from 'vitest'
 import type {Options} from '../types.js'

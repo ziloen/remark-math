@@ -1,4 +1,4 @@
-import {codes} from 'micromark-util-symbol'
+import {codes} from 'micromark-util-symbol/codes.js'
 import type {Extension} from 'micromark-util-types'
 import type {Options} from '../types.js'
 import {latexMathFlow} from './latex-flow.js'

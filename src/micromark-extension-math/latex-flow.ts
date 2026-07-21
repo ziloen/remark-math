@@ -1,7 +1,9 @@
 import {ok as assert} from 'devlop'
 import {factorySpace} from 'micromark-factory-space'
 import {markdownLineEnding} from 'micromark-util-character'
-import {codes, constants, types} from 'micromark-util-symbol'
+import {codes} from 'micromark-util-symbol/codes.js'
+import {constants} from 'micromark-util-symbol/constants.js'
+import {types} from 'micromark-util-symbol/types.js'
 import type {
   Construct,
   Effects,
@@ -32,7 +34,7 @@ function tokenize(
 
   return start
 
-  function start(code: number | null): State | undefined {
+  function start(code: number | null): State | void {
     assert(code === codes.backslash)
     effects.enter('mathFlow')
     effects.enter('mathFlowFence')
@@ -41,21 +43,21 @@ function tokenize(
     return openBracket
   }
 
-  function openBracket(code: number | null): State | undefined {
+  function openBracket(code: number | null): State | void {
     if (code !== codes.leftSquareBracket) return nok(code)
     effects.consume(code)
     effects.exit('mathFlowFenceSequence')
     return factorySpace(effects, afterOpen, types.whitespace)
   }
 
-  function afterOpen(code: number | null): State | undefined {
+  function afterOpen(code: number | null): State | void {
     if (!markdownLineEnding(code)) return nok(code)
     effects.exit('mathFlowFence')
     if (self.interrupt) return ok(code)
     return effects.attempt(continuation, beforeContinuation, nok)(code)
   }
 
-  function beforeContinuation(code: number | null): State | undefined {
+  function beforeContinuation(code: number | null): State | void {
     return effects.attempt(
       {partial: true, tokenize: tokenizeClose},
       afterClose,
@@ -63,7 +65,7 @@ function tokenize(
     )(code)
   }
 
-  function contentStart(code: number | null): State | undefined {
+  function contentStart(code: number | null): State | void {
     return (initialSize
       ? factorySpace(
           effects,
@@ -74,7 +76,7 @@ function tokenize(
       : beforeContent)(code)
   }
 
-  function beforeContent(code: number | null): State | undefined {
+  function beforeContent(code: number | null): State | void {
     if (code === codes.eof) return nok(code)
     if (markdownLineEnding(code)) {
       return effects.attempt(continuation, beforeContinuation, nok)(code)
@@ -83,7 +85,7 @@ function tokenize(
     return content(code)
   }
 
-  function content(code: number | null): State | undefined {
+  function content(code: number | null): State | void {
     if (code === codes.eof || markdownLineEnding(code)) {
       effects.exit('mathFlowValue')
       return beforeContent(code)
@@ -92,7 +94,7 @@ function tokenize(
     return content
   }
 
-  function afterClose(code: number | null): State | undefined {
+  function afterClose(code: number | null): State | void {
     effects.exit('mathFlow')
     return ok(code)
   }
@@ -112,7 +114,7 @@ function tokenize(
         : constants.tabSize
     )
 
-    function closeBackslash(code: number | null): State | undefined {
+    function closeBackslash(code: number | null): State | void {
       if (code !== codes.backslash) return nok(code)
       effects.enter('mathFlowFence')
       effects.enter('mathFlowFenceSequence')
@@ -120,14 +122,14 @@ function tokenize(
       return closeBracket
     }
 
-    function closeBracket(code: number | null): State | undefined {
+    function closeBracket(code: number | null): State | void {
       if (code !== codes.rightSquareBracket) return nok(code)
       effects.consume(code)
       effects.exit('mathFlowFenceSequence')
       return factorySpace(effects, afterSequence, types.whitespace)
     }
 
-    function afterSequence(code: number | null): State | undefined {
+    function afterSequence(code: number | null): State | void {
       if (code === codes.eof || markdownLineEnding(code)) {
         effects.exit('mathFlowFence')
         return ok(code)
@@ -146,7 +148,7 @@ function tokenizeContinuation(
   const self = this
   return start
 
-  function start(code: number | null): State | undefined {
+  function start(code: number | null): State | void {
     assert(markdownLineEnding(code))
     effects.enter(types.lineEnding)
     effects.consume(code)
@@ -154,7 +156,7 @@ function tokenizeContinuation(
     return lineStart
   }
 
-  function lineStart(code: number | null): State | undefined {
+  function lineStart(code: number | null): State | void {
     return self.parser.lazy[self.now().line] ? nok(code) : ok(code)
   }
 }
