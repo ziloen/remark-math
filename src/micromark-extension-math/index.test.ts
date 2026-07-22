@@ -1,11 +1,15 @@
 import { parse, postprocess, preprocess } from 'micromark'
-import type { Event } from 'micromark-util-types'
+import type { Event, Extension } from 'micromark-util-types'
 import { describe, expect, it } from 'vitest'
 import type { Options } from '../types.js'
 import { math } from './index.js'
 
-function mathTokens(value: string, options?: Options): string[] {
-  const parser = parse({ extensions: [math(options)] })
+function mathTokens(
+  value: string,
+  options?: Options,
+  extension: Extension = math(options),
+): string[] {
+  const parser = parse({ extensions: [extension] })
   const events = postprocess(
     parser.document().write(preprocess()(value, undefined, true)),
   )
@@ -50,6 +54,31 @@ describe('math syntax', () => {
     ])
     expect(mathTokens(String.raw`\\(x\\)`)).toEqual([])
     expect(mathTokens(String.raw`\\\(x\\\)`)).toEqual([String.raw`\(x\\\)`])
+  })
+
+  it('keeps repeated unclosed LaTeX delimiters as text', () => {
+    expect(mathTokens(String.raw`\(a`.repeat(200))).toEqual([])
+    expect(mathTokens(String.raw`\[a`.repeat(200))).toEqual([])
+  })
+
+  it('scopes exhausted LaTeX closers to their text context and kind', () => {
+    const extension = math()
+
+    expect(
+      mathTokens(String.raw`\(open
+
+\(closed\)`),
+    ).toEqual([String.raw`\(closed\)`])
+    expect(mathTokens(String.raw`\(open \[display\]`)).toEqual([
+      String.raw`\[display\]`,
+    ])
+    expect(mathTokens(String.raw`\[open \(inline\)`)).toEqual([
+      String.raw`\(inline\)`,
+    ])
+    expect(mathTokens(String.raw`\(open`, undefined, extension)).toEqual([])
+    expect(mathTokens(String.raw`\(closed\)`, undefined, extension)).toEqual([
+      String.raw`\(closed\)`,
+    ])
   })
 
   it('supports configured fence sizes and rejects empty or unclosed content', () => {

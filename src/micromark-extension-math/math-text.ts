@@ -156,6 +156,7 @@ export function mathText(options?: Options | null): Construct {
 }
 
 export function latexMathText(display: boolean): Construct {
+  const exhausted = new WeakSet<TokenizeContext>()
   const closeMarker = display
     ? codes.rightSquareBracket
     : codes.rightParenthesis
@@ -168,11 +169,19 @@ export function latexMathText(display: boolean): Construct {
     tokenize,
   }
 
-  function tokenize(effects: Effects, ok: State, nok: State): State {
+  function tokenize(
+    this: TokenizeContext,
+    effects: Effects,
+    ok: State,
+    nok: State,
+  ): State {
+    const self = this
     let hasContent = false
     let backslashRun = 0
     let slashesBefore = 0
     let candidate: Token
+
+    if (exhausted.has(self)) return nok
 
     return start
 
@@ -193,7 +202,10 @@ export function latexMathText(display: boolean): Construct {
     }
 
     function content(code: number | null): State | undefined {
-      if (code === codes.eof) return nok(code)
+      if (code === codes.eof) {
+        exhausted.add(self)
+        return nok(code)
+      }
 
       if (code === codes.backslash) {
         slashesBefore = backslashRun

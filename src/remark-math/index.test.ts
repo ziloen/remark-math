@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import { unified } from 'unified'
 import { describe, expect, it } from 'vitest'
+import realWorldFixture from '../../test/fixtures/real-world-math.md?raw'
 import remarkMath from '../index.js'
 
 describe('remarkMath', () => {
@@ -215,6 +216,45 @@ b`)
     ])
     expect(countMath(mismatched)).toBe(0)
   })
+
+  it('parses a long real-world document with nested Markdown structures', () => {
+    const processor = unified().use(remarkParse).use(remarkMath)
+    const tree = processor.parse(realWorldFixture)
+    const inlineMath = nodesOfType(tree, 'inlineMath')
+    const blockMath = nodesOfType(tree, 'math')
+    const lists = nodesOfType(tree, 'list')
+    const mathValues = [...inlineMath, ...blockMath].map((node) => node.value)
+
+    expect(realWorldFixture.length).toBeGreaterThan(13_000)
+    expect(realWorldFixture.split('\n')).toHaveLength(461)
+    expect(inlineMath).toHaveLength(182)
+    expect(blockMath).toHaveLength(17)
+    expect(lists).toHaveLength(60)
+    expect(lists.some((list) => countMath(list) >= 20)).toBe(true)
+    expect(
+      lists.some((list) =>
+        list.children?.some((child) => nodesOfType(child, 'list').length > 0),
+      ),
+    ).toBe(true)
+    expect(mathValues).toEqual(
+      expect.arrayContaining([
+        'E = mc^2',
+        'recovered_dollar=1',
+        'recovered_inline=2',
+        'recovered_display=3',
+        'end_latex=2',
+      ]),
+    )
+    expect(mathValues.some((value) => value?.includes('sentinel'))).toBe(false)
+
+    const promoted = unified()
+      .use(remarkParse)
+      .use(remarkMath, { displayMathInText: true })
+      .parse(realWorldFixture)
+
+    expect(nodesOfType(promoted, 'math')).toHaveLength(19)
+    expect(nodesOfType(promoted, 'inlineMath')).toHaveLength(180)
+  })
 })
 
 function countMath(node: unknown): number {
@@ -228,4 +268,22 @@ function countMath(node: unknown): number {
       0,
     )
   )
+}
+
+interface TreeRecord {
+  type?: string
+  value?: string
+  children?: unknown[]
+}
+
+function nodesOfType(node: unknown, type: string): TreeRecord[] {
+  if (!node || typeof node !== 'object') return []
+  const record = node as TreeRecord
+  const matches = record.type === type ? [record] : []
+
+  for (const child of record.children ?? []) {
+    matches.push(...nodesOfType(child, type))
+  }
+
+  return matches
 }
