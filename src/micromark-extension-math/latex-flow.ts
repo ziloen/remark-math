@@ -1,27 +1,30 @@
-import {ok as assert} from 'devlop'
-import {factorySpace} from 'micromark-factory-space'
-import {markdownLineEnding} from 'micromark-util-character'
-import {codes, constants, types} from 'micromark-util-symbol'
+import { ok as assert } from 'devlop'
+import { factorySpace } from 'micromark-factory-space'
+import { markdownLineEnding } from 'micromark-util-character'
+import { codes, constants, types } from 'micromark-util-symbol'
 import type {
   Construct,
   Effects,
   State,
-  TokenizeContext
+  TokenizeContext,
 } from 'micromark-util-types'
 
 export const latexMathFlow: Construct = {
   concrete: true,
   name: 'mathFlowLatex',
-  tokenize
+  tokenize,
 }
 
-const continuation: Construct = {partial: true, tokenize: tokenizeContinuation}
+const continuation: Construct = {
+  partial: true,
+  tokenize: tokenizeContinuation,
+}
 
 function tokenize(
   this: TokenizeContext,
   effects: Effects,
   ok: State,
-  nok: State
+  nok: State,
 ): State {
   const self = this
   const tail = self.events[self.events.length - 1]
@@ -57,21 +60,23 @@ function tokenize(
 
   function beforeContinuation(code: number | null): State | undefined {
     return effects.attempt(
-      {partial: true, tokenize: tokenizeClose},
+      { partial: true, tokenize: tokenizeClose },
       afterClose,
-      contentStart
+      contentStart,
     )(code)
   }
 
   function contentStart(code: number | null): State | undefined {
-    return (initialSize
-      ? factorySpace(
-          effects,
-          beforeContent,
-          types.linePrefix,
-          initialSize + 1
-        )
-      : beforeContent)(code)
+    return (
+      initialSize
+        ? factorySpace(
+            effects,
+            beforeContent,
+            types.linePrefix,
+            initialSize + 1,
+          )
+        : beforeContent
+    )(code)
   }
 
   function beforeContent(code: number | null): State | undefined {
@@ -97,11 +102,7 @@ function tokenize(
     return ok(code)
   }
 
-  function tokenizeClose(
-    effects: Effects,
-    ok: State,
-    nok: State
-  ): State {
+  function tokenizeClose(effects: Effects, ok: State, nok: State): State {
     assert(self.parser.constructs.disable.null)
     return factorySpace(
       effects,
@@ -109,7 +110,7 @@ function tokenize(
       types.linePrefix,
       self.parser.constructs.disable.null.includes('codeIndented')
         ? undefined
-        : constants.tabSize
+        : constants.tabSize,
     )
 
     function closeBackslash(code: number | null): State | undefined {
@@ -141,7 +142,7 @@ function tokenizeContinuation(
   this: TokenizeContext,
   effects: Effects,
   ok: State,
-  nok: State
+  nok: State,
 ): State {
   const self = this
   return start

@@ -1,4 +1,4 @@
-import type {Data, Literal} from 'mdast'
+import type { Data, Literal } from 'mdast'
 
 export interface Options {
   singleDollarTextMath?: boolean

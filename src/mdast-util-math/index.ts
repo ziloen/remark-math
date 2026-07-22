@@ -1,33 +1,33 @@
-import {ok as assert} from 'devlop'
-import type {Element, ElementContent} from 'hast'
+import { ok as assert } from 'devlop'
+import type { Element, ElementContent } from 'hast'
+import { longestStreak } from 'longest-streak'
 import type {
   Nodes,
   Paragraph,
   Parent,
   PhrasingContent,
   Root,
-  RootContent
+  RootContent,
 } from 'mdast'
 import type {
   CompileContext,
   Extension,
   Handle,
-  Transform
+  Transform,
 } from 'mdast-util-from-markdown'
 import type {
+  Options as ToMarkdownExtension,
   Handle as ToMarkdownHandle,
-  Options as ToMarkdownExtension
 } from 'mdast-util-to-markdown'
-import type {Token} from 'micromark-util-types'
-import {longestStreak} from 'longest-streak'
-import type {InlineMath, Math, Options} from '../types.js'
+import type { Token } from 'micromark-util-types'
+import type { InlineMath, Math, Options } from '../types.js'
 
 interface InternalMathData {
   _displayMath?: boolean
   _rawMath?: string
   hChildren?: ElementContent[]
   hName?: string
-  hProperties?: {className: string[]}
+  hProperties?: { className: string[] }
 }
 
 export function mathFromMarkdown(options?: Options | null): Extension {
@@ -43,7 +43,7 @@ export function mathFromMarkdown(options?: Options | null): Extension {
       mathFlow: enterMathFlow,
       mathFlowFenceMeta: enterMathFlowMeta,
       mathText: enterMathText,
-      mathTextDisplay: enterDisplayMathText
+      mathTextDisplay: enterDisplayMathText,
     },
     exit: {
       mathFlow: exitMathFlow,
@@ -52,9 +52,9 @@ export function mathFromMarkdown(options?: Options | null): Extension {
       mathFlowValue: exitMathData,
       mathText: exitInline,
       mathTextDisplay: exitInline,
-      mathTextData: exitMathData
+      mathTextData: exitMathData,
     },
-    transforms: [transformMath(options)]
+    transforms: [transformMath(options)],
   }
 }
 
@@ -62,17 +62,17 @@ const enterMathFlow: Handle = function (token): void {
   const code: Element = {
     type: 'element',
     tagName: 'code',
-    properties: {className: ['language-math', 'math-display']},
-    children: []
+    properties: { className: ['language-math', 'math-display'] },
+    children: [],
   }
   this.enter(
     {
       type: 'math',
       meta: null,
       value: '',
-      data: {hName: 'pre', hChildren: [code]}
+      data: { hName: 'pre', hChildren: [code] },
     } as Math,
-    token
+    token,
   )
 }
 
@@ -102,7 +102,7 @@ const exitMathFlow: Handle = function (token): void {
   const data = node.data as InternalMathData
   const code = data.hChildren?.[0]
   assert(code?.type === 'element' && code.tagName === 'code')
-  code.children.push({type: 'text', value})
+  code.children.push({ type: 'text', value })
   this.data.mathFlowInside = undefined
 }
 
@@ -124,8 +124,8 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
           after: '\n',
           before: value,
           encode: ['$'],
-          ...tracker.current()
-        })
+          ...tracker.current(),
+        }),
       )
       exitMeta()
     }
@@ -140,7 +140,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
   const inlineMath: ToMarkdownHandle = (
     node: InlineMath,
     parent,
-    state
+    state,
   ): string => {
     let value = node.value
     let size = single ? 1 : 2
@@ -152,7 +152,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
       }
 
       const unsafeFence = new RegExp(
-        '(^|[^$])' + '\\$'.repeat(size) + '([^$]|$)'
+        '(^|[^$])' + '\\$'.repeat(size) + '([^$]|$)',
       ).test(value)
       if (!unsafeFence) break
       size++
@@ -165,7 +165,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
       size > 1 &&
       parent?.type === 'paragraph' &&
       parent.children.filter(
-        (child) => child.type !== 'text' || child.value.trim() !== ''
+        (child) => child.type !== 'text' || child.value.trim() !== '',
       ).length === 1
     ) {
       return '\\(' + value + '\\)'
@@ -207,24 +207,24 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
 
   return {
     unsafe: [
-      {character: '\r', inConstruct: 'mathFlowMeta'},
-      {character: '\n', inConstruct: 'mathFlowMeta'},
+      { character: '\r', inConstruct: 'mathFlowMeta' },
+      { character: '\n', inConstruct: 'mathFlowMeta' },
       {
         character: '$',
         after: single ? undefined : '\\$',
-        inConstruct: 'phrasing'
+        inConstruct: 'phrasing',
       },
-      {character: '$', inConstruct: 'mathFlowMeta'},
-      {atBreak: true, character: '$', after: '\\$'}
+      { character: '$', inConstruct: 'mathFlowMeta' },
+      { atBreak: true, character: '$', after: '\\$' },
     ],
-    handlers: {math, inlineMath: inlineMathHandler}
+    handlers: { math, inlineMath: inlineMathHandler },
   }
 }
 
 function enterInline(
   this: CompileContext,
   token: Token,
-  display: boolean
+  display: boolean,
 ): void {
   this.enter(
     {
@@ -234,11 +234,11 @@ function enterInline(
         _displayMath: display || undefined,
         _rawMath: this.sliceSerialize(token),
         hName: 'code',
-        hProperties: {className: ['language-math', 'math-inline']},
-        hChildren: []
-      }
+        hProperties: { className: ['language-math', 'math-inline'] },
+        hChildren: [],
+      },
     } as InlineMath,
-    token
+    token,
   )
   this.buffer()
 }
@@ -251,7 +251,7 @@ const exitInline: Handle = function (token): void {
   node.value = value
   const data = node.data as InternalMathData
   assert(data.hChildren)
-  data.hChildren.push({type: 'text', value})
+  data.hChildren.push({ type: 'text', value })
 }
 
 const exitMathData: Handle = function (token): void {
@@ -293,7 +293,10 @@ function restoreInlineHtmlMath(root: Root): void {
 function visitPhrasingParents(node: Parent): void {
   if (node.type === 'paragraph' || node.type === 'heading') {
     const tags: string[] = []
-    node.children = processHtmlChildren(node.children, tags) as typeof node.children
+    node.children = processHtmlChildren(
+      node.children,
+      tags,
+    ) as typeof node.children
     return
   }
 
@@ -315,12 +318,12 @@ function processHtmlChildren(children: Nodes[], tags: string[]): Nodes[] {
       next = {
         type: 'text',
         value: (data as InternalMathData)._rawMath as string,
-        position: child.position
+        position: child.position,
       }
     } else if ('children' in child) {
       child.children = processHtmlChildren(
         child.children as Nodes[],
-        tags
+        tags,
       ) as typeof child.children
     }
 
@@ -350,7 +353,7 @@ const voidHtmlElements = new Set([
   'param',
   'source',
   'track',
-  'wbr'
+  'wbr',
 ])
 
 function updateHtmlStack(value: string, tags: string[]): void {
@@ -370,7 +373,7 @@ function updateHtmlStack(value: string, tags: string[]): void {
 
 function splitParagraph(
   paragraph: Paragraph,
-  displayMathInText: boolean
+  displayMathInText: boolean,
 ): RootContent[] {
   const result: RootContent[] = []
   let phrasing: PhrasingContent[] = []
@@ -382,10 +385,10 @@ function splitParagraph(
       return
     }
 
-    const node: Paragraph = {type: 'paragraph', children: phrasing}
+    const node: Paragraph = { type: 'paragraph', children: phrasing }
     const first = phrasing[0]
     const last = phrasing[phrasing.length - 1]
-    node.position = {start: first.position!.start, end: last.position!.end}
+    node.position = { start: first.position!.start, end: last.position!.end }
     result.push(node)
     phrasing = []
   }
@@ -395,14 +398,15 @@ function splitParagraph(
     if (stripLeadingBoundary && child.type === 'text') {
       child = {
         ...child,
-        value: child.value.replace(/^[ \t]*(?:\r?\n|\r)[ \t]*/, '')
+        value: child.value.replace(/^[ \t]*(?:\r?\n|\r)[ \t]*/, ''),
       }
       stripLeadingBoundary = false
     }
 
-    const data = child.type === 'inlineMath'
-      ? (child.data as InternalMathData | undefined)
-      : undefined
+    const data =
+      child.type === 'inlineMath'
+        ? (child.data as InternalMathData | undefined)
+        : undefined
 
     const isolatedDisplay =
       child.type === 'inlineMath' &&
@@ -468,15 +472,15 @@ function promote(node: InlineMath): Math {
   const code: Element = {
     type: 'element',
     tagName: 'code',
-    properties: {className: ['language-math', 'math-display']},
-    children: [{type: 'text', value: node.value}]
+    properties: { className: ['language-math', 'math-display'] },
+    children: [{ type: 'text', value: node.value }],
   }
   return {
     type: 'math',
     meta: null,
     value: node.value,
-    data: {hName: 'pre', hChildren: [code]},
-    position: node.position
+    data: { hName: 'pre', hChildren: [code] },
+    position: node.position,
   }
 }
 
@@ -494,7 +498,9 @@ function cleanNested(node: RootContent | PhrasingContent): void {
 }
 
 function hasVisibleContent(children: PhrasingContent[]): boolean {
-  return children.some((child) => child.type !== 'text' || child.value.trim() !== '')
+  return children.some(
+    (child) => child.type !== 'text' || child.value.trim() !== '',
+  )
 }
 
 declare module 'mdast-util-from-markdown' {

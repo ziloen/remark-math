@@ -1,7 +1,7 @@
-import {describe, expect, it} from 'vitest'
 import remarkParse from 'remark-parse'
 import remarkStringify from 'remark-stringify'
-import {unified} from 'unified'
+import { unified } from 'unified'
+import { describe, expect, it } from 'vitest'
 import remarkMath from '../index.js'
 
 describe('math mdast extensions', () => {
@@ -15,17 +15,17 @@ describe('math mdast extensions', () => {
       {
         type: 'paragraph',
         children: [
-          {type: 'text', value: 'Math '},
+          { type: 'text', value: 'Math ' },
           {
             type: 'inlineMath',
             value: 'a',
             data: {
               hName: 'code',
-              hProperties: {className: ['language-math', 'math-inline']},
-              hChildren: [{type: 'text', value: 'a'}]
-            }
-          }
-        ]
+              hProperties: { className: ['language-math', 'math-inline'] },
+              hChildren: [{ type: 'text', value: 'a' }],
+            },
+          },
+        ],
       },
       {
         type: 'math',
@@ -37,12 +37,12 @@ describe('math mdast extensions', () => {
             {
               type: 'element',
               tagName: 'code',
-              properties: {className: ['language-math', 'math-display']},
-              children: [{type: 'text', value: 'b'}]
-            }
-          ]
-        }
-      }
+              properties: { className: ['language-math', 'math-display'] },
+              children: [{ type: 'text', value: 'b' }],
+            },
+          ],
+        },
+      },
     ])
   })
 
@@ -60,15 +60,15 @@ describe('math mdast extensions', () => {
     const processor = unified()
       .use(remarkParse)
       .use(remarkStringify)
-      .use(remarkMath, {displayMathInText: true})
+      .use(remarkMath, { displayMathInText: true })
     const markdown = processor.stringify({
       type: 'root',
       children: [
         {
           type: 'paragraph',
-          children: [{type: 'inlineMath', value: 'a$b'}]
-        }
-      ]
+          children: [{ type: 'inlineMath', value: 'a$b' }],
+        },
+      ],
     })
     const reparsed = processor.parse(markdown)
 
@@ -83,10 +83,10 @@ describe('math mdast extensions', () => {
       children: [
         {
           type: 'paragraph',
-          children: [{type: 'inlineMath', value: '$a$'}]
+          children: [{ type: 'inlineMath', value: '$a$' }],
         },
-        {type: 'math', value: '$$'}
-      ]
+        { type: 'math', value: '$$' },
+      ],
     })
 
     expect(markdown).toBe('$$ $a$ $$\n\n$$$\n$$\n$$$\n')
@@ -97,12 +97,12 @@ describe('math mdast extensions', () => {
     const markdown = processor.stringify({
       type: 'root',
       children: [
-        {type: 'math', meta: 'meta', value: 'a'},
+        { type: 'math', meta: 'meta', value: 'a' },
         {
           type: 'paragraph',
-          children: [{type: 'inlineMath', value: 'a\r\n# b'}]
-        }
-      ]
+          children: [{ type: 'inlineMath', value: 'a\r\n# b' }],
+        },
+      ],
     })
 
     expect(markdown).toBe('$$meta\na\n$$\n\n$a # b$\n')
@@ -115,16 +115,16 @@ describe('math mdast extensions', () => {
       .stringify({
         type: 'root',
         children: [
-          {type: 'math', value: ''},
+          { type: 'math', value: '' },
           {
             type: 'paragraph',
             children: [
-              {type: 'inlineMath', value: ''},
-              {type: 'text', value: ' '},
-              {type: 'inlineMath', value: 'a\n# b'}
-            ]
-          }
-        ]
+              { type: 'inlineMath', value: '' },
+              { type: 'text', value: ' ' },
+              { type: 'inlineMath', value: 'a\n# b' },
+            ],
+          },
+        ],
       })
 
     expect(markdown).toBe('$$\n$$\n\n$$ $a # b$\n')
@@ -140,37 +140,37 @@ describe('math mdast extensions', () => {
     expect(paragraph).toMatchObject({
       type: 'paragraph',
       children: [
-        {type: 'inlineMath', value: 'a'},
-        {type: 'text', value: ' '},
-        {type: 'inlineMath', value: 'b'}
-      ]
+        { type: 'inlineMath', value: 'a' },
+        { type: 'text', value: ' ' },
+        { type: 'inlineMath', value: 'b' },
+      ],
     })
   })
 
   it('covers serializer option and padding edge combinations', () => {
     const double = unified()
       .use(remarkStringify)
-      .use(remarkMath, {singleDollarTextMath: false})
+      .use(remarkMath, { singleDollarTextMath: false })
       .stringify({
         type: 'root',
         children: [
-          {type: 'paragraph', children: [{type: 'inlineMath', value: 'a'}]}
-        ]
+          { type: 'paragraph', children: [{ type: 'inlineMath', value: 'a' }] },
+        ],
       })
     const latex = unified()
       .use(remarkStringify)
-      .use(remarkMath, {displayMathInText: true})
+      .use(remarkMath, { displayMathInText: true })
       .stringify({
         type: 'root',
         children: [
           {
             type: 'paragraph',
             children: [
-              {type: 'text', value: ' '},
-              {type: 'inlineMath', value: 'a$b'}
-            ]
-          }
-        ]
+              { type: 'text', value: ' ' },
+              { type: 'inlineMath', value: 'a$b' },
+            ],
+          },
+        ],
       })
     const oneSidedSpace = unified()
       .use(remarkStringify)
@@ -178,8 +178,11 @@ describe('math mdast extensions', () => {
       .stringify({
         type: 'root',
         children: [
-          {type: 'paragraph', children: [{type: 'inlineMath', value: ' a'}]}
-        ]
+          {
+            type: 'paragraph',
+            children: [{ type: 'inlineMath', value: ' a' }],
+          },
+        ],
       })
 
     expect(double).toBe('$$a$$\n')

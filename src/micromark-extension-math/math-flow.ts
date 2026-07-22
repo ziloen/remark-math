@@ -1,31 +1,30 @@
-import {ok as assert} from 'devlop'
-import {factorySpace} from 'micromark-factory-space'
-import {markdownLineEnding} from 'micromark-util-character'
-import {codes, constants, types} from 'micromark-util-symbol'
+import { ok as assert } from 'devlop'
+import { factorySpace } from 'micromark-factory-space'
+import { markdownLineEnding } from 'micromark-util-character'
+import { codes, constants, types } from 'micromark-util-symbol'
 import type {
   Construct,
   Effects,
   State,
   TokenizeContext,
-  Tokenizer
 } from 'micromark-util-types'
 
 export const mathFlow: Construct = {
   concrete: true,
   name: 'mathFlow',
-  tokenize: tokenizeMathFlow
+  tokenize: tokenizeMathFlow,
 }
 
 const nonLazyContinuation: Construct = {
   partial: true,
-  tokenize: tokenizeNonLazyContinuation
+  tokenize: tokenizeNonLazyContinuation,
 }
 
 function tokenizeMathFlow(
   this: TokenizeContext,
   effects: Effects,
   ok: State,
-  nok: State
+  nok: State,
 ): State {
   const self = this
   const tail = self.events[self.events.length - 1]
@@ -59,7 +58,9 @@ function tokenizeMathFlow(
   function beforeMeta(code: number | null): State | undefined {
     if (code === codes.eof || markdownLineEnding(code)) return afterMeta(code)
     effects.enter('mathFlowFenceMeta')
-    effects.enter(types.chunkString, {contentType: constants.contentTypeString})
+    effects.enter(types.chunkString, {
+      contentType: constants.contentTypeString,
+    })
     return meta(code)
   }
 
@@ -78,40 +79,34 @@ function tokenizeMathFlow(
     effects.exit('mathFlowFence')
     if (code === codes.eof) return nok(code)
     if (self.interrupt) return ok(code)
-    return effects.attempt(
-      nonLazyContinuation,
-      beforeContinuation,
-      nok
-    )(code)
+    return effects.attempt(nonLazyContinuation, beforeContinuation, nok)(code)
   }
 
   function beforeContinuation(code: number | null): State | undefined {
     return effects.attempt(
-      {partial: true, tokenize: tokenizeClosingFence},
+      { partial: true, tokenize: tokenizeClosingFence },
       afterClose,
-      contentStart
+      contentStart,
     )(code)
   }
 
   function contentStart(code: number | null): State | undefined {
-    return (initialSize
-      ? factorySpace(
-          effects,
-          beforeContent,
-          types.linePrefix,
-          initialSize + 1
-        )
-      : beforeContent)(code)
+    return (
+      initialSize
+        ? factorySpace(
+            effects,
+            beforeContent,
+            types.linePrefix,
+            initialSize + 1,
+          )
+        : beforeContent
+    )(code)
   }
 
   function beforeContent(code: number | null): State | undefined {
     if (code === codes.eof) return nok(code)
     if (markdownLineEnding(code)) {
-      return effects.attempt(
-        nonLazyContinuation,
-        beforeContinuation,
-        nok
-      )(code)
+      return effects.attempt(nonLazyContinuation, beforeContinuation, nok)(code)
     }
     effects.enter('mathFlowValue')
     return content(code)
@@ -134,7 +129,7 @@ function tokenizeMathFlow(
   function tokenizeClosingFence(
     effects: Effects,
     ok: State,
-    nok: State
+    nok: State,
   ): State {
     let size = 0
     assert(self.parser.constructs.disable.null)
@@ -144,7 +139,7 @@ function tokenizeMathFlow(
       types.linePrefix,
       self.parser.constructs.disable.null.includes('codeIndented')
         ? undefined
-        : constants.tabSize
+        : constants.tabSize,
     )
 
     function beforeClose(code: number | null): State | undefined {
@@ -178,7 +173,7 @@ function tokenizeNonLazyContinuation(
   this: TokenizeContext,
   effects: Effects,
   ok: State,
-  nok: State
+  nok: State,
 ): State {
   const self = this
   return start

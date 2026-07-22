@@ -1,0 +1,80 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "arrowParens": "always",
+  "bracketSameLine": false,
+  "bracketSpacing": true,
+  "endOfLine": "lf",
+  "htmlWhitespaceSensitivity": "css",
+  "ignorePatterns": [
+    // Directories
+    ".agents",
+    ".claude",
+    ".github",
+    ".vscode",
+    "dist",
+    "public",
+    // Files
+    "**/*.css",
+    "**/*.html",
+    "**/*.json",
+    "!src/locales/*.json",
+    "**/*.jsonc",
+    "**/*.md",
+    "**/*.scss",
+    "**/*.vue",
+    "**/*.yml",
+    "src/types/auto-imports.d.ts"
+  ],
+  "jsxSingleQuote": false,
+  "objectWrap": "preserve",
+  "overrides": [
+    {
+      "files": [
+        "src/locales/*.json"
+      ],
+      "options": {
+        "printWidth": 1
+      }
+    }
+  ],
+  "printWidth": 80,
+  "quoteProps": "as-needed",
+  "semi": false,
+  "singleQuote": true,
+  "sortImports": {
+    "customGroups": [
+      {
+        "elementNamePattern": [
+          "**/*.{png,jpg,jpeg,svg,gif,bmp,webp,mp4,mov,avi,mkv,json,woff2}"
+        ],
+        "groupName": "assets"
+      }
+    ],
+    // prettier-plugin-organize-imports compatible configuration
+    "groups": [
+      "side_effect",
+      [
+        "style",
+        "assets"
+      ],
+      [
+        "builtin",
+        "external",
+        "internal"
+      ],
+      {
+        "newlinesBetween": false
+      },
+      [
+        "parent",
+        "sibling",
+        "index"
+      ],
+      "unknown"
+    ],
+    "newlinesBetween": true
+  },
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false
+}

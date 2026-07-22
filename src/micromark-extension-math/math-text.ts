@@ -1,6 +1,6 @@
-import {ok as assert} from 'devlop'
-import {markdownLineEnding} from 'micromark-util-character'
-import {codes, types} from 'micromark-util-symbol'
+import { ok as assert } from 'devlop'
+import { markdownLineEnding } from 'micromark-util-character'
+import { codes, types } from 'micromark-util-symbol'
 import type {
   Construct,
   Effects,
@@ -9,9 +9,8 @@ import type {
   State,
   Token,
   TokenizeContext,
-  Tokenizer
 } from 'micromark-util-types'
-import type {Options} from '../types.js'
+import type { Options } from '../types.js'
 
 export function mathText(options?: Options | null): Construct {
   const single = options?.singleDollarTextMath ?? true
@@ -20,14 +19,14 @@ export function mathText(options?: Options | null): Construct {
     name: 'mathText',
     previous: previousDollar,
     resolve: resolveMathText,
-    tokenize: tokenize
+    tokenize: tokenize,
   }
 
   function tokenize(
     this: TokenizeContext,
     effects: Effects,
     ok: State,
-    nok: State
+    nok: State,
   ): State {
     const self = this
     const previousCode = self.previous
@@ -81,7 +80,7 @@ export function mathText(options?: Options | null): Construct {
         }
 
         candidate = effects.enter(
-          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence'
+          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence',
         )
         sizeClose = 0
         return close(code)
@@ -142,7 +141,7 @@ export function mathText(options?: Options | null): Construct {
         }
 
         effects.exit(
-          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence'
+          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence',
         )
         effects.exit(sizeOpen === 2 ? 'mathTextDisplay' : 'mathText')
         return ok(code)
@@ -157,23 +156,19 @@ export function mathText(options?: Options | null): Construct {
 }
 
 export function latexMathText(display: boolean): Construct {
-  const closeMarker = display ? codes.rightSquareBracket : codes.rightParenthesis
+  const closeMarker = display
+    ? codes.rightSquareBracket
+    : codes.rightParenthesis
   const containerType = display ? 'mathTextDisplay' : 'mathText'
-  const sequenceType = display
-    ? 'mathTextDisplaySequence'
-    : 'mathTextSequence'
+  const sequenceType = display ? 'mathTextDisplaySequence' : 'mathTextSequence'
 
   return {
     name: display ? 'mathTextDisplayLatex' : 'mathTextLatex',
     resolve: resolveMathText,
-    tokenize
+    tokenize,
   }
 
-  function tokenize(
-    effects: Effects,
-    ok: State,
-    nok: State
-  ): State {
+  function tokenize(effects: Effects, ok: State, nok: State): State {
     let hasContent = false
     let backslashRun = 0
     let slashesBefore = 0
@@ -190,9 +185,7 @@ export function latexMathText(display: boolean): Construct {
     }
 
     function openMarker(code: number | null): State | undefined {
-      const expected = display
-        ? codes.leftSquareBracket
-        : codes.leftParenthesis
+      const expected = display ? codes.leftSquareBracket : codes.leftParenthesis
       if (code !== expected) return nok(code)
       effects.consume(code)
       effects.exit(sequenceType)
@@ -293,7 +286,10 @@ const resolveMathText: Resolver = (events) => {
   tailExitIndex++
   while (++index <= tailExitIndex) {
     if (enter === undefined) {
-      if (index !== tailExitIndex && events[index][1].type !== types.lineEnding) {
+      if (
+        index !== tailExitIndex &&
+        events[index][1].type !== types.lineEnding
+      ) {
         enter = index
       }
     } else if (

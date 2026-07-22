@@ -13,14 +13,14 @@ npm install @ziloen/remark-math
 ## Use
 
 ```js
-import remarkMath from '@ziloen/remark-math'
-import remarkParse from 'remark-parse'
-import {unified} from 'unified'
+import remarkMath from "@ziloen/remark-math";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
 
 const tree = unified()
   .use(remarkParse)
-  .use(remarkMath, {displayMathInText: true})
-  .parse('a $$b$$, \\[c\\] d')
+  .use(remarkMath, { displayMathInText: true })
+  .parse("a $$b$$, \\[c\\] d");
 ```
 
 This package only parses and serializes math. Combine it with a renderer such
@@ -49,10 +49,10 @@ the TypeScript-only `Options` type.
 ```ts
 interface Options {
   /** Enable `$...$`. Default: `true`. */
-  singleDollarTextMath?: boolean
+  singleDollarTextMath?: boolean;
 
   /** Promote direct paragraph `$$...$$` and `\\[...\\]` to blocks. Default: `false`. */
-  displayMathInText?: boolean
+  displayMathInText?: boolean;
 }
 ```
 

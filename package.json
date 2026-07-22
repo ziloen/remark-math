@@ -37,14 +37,15 @@
     "coverage": "vitest run --coverage",
     "check": "npm run verify && publint && node scripts/check-package.mjs",
     "verify": "npm run typecheck && npm run test && npm run coverage && npm run build",
+    "fmt": "oxfmt",
     "prepack": "npm run check"
   },
   "dependencies": {
-    "@types/hast": "^3.0.4",
+    "@types/hast": "^3.0.5",
     "@types/mdast": "^4.0.4",
     "devlop": "^1.1.0",
     "longest-streak": "^3.1.0",
-    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-from-markdown": "^2.0.3",
     "mdast-util-to-markdown": "^2.1.2",
     "micromark-factory-space": "^2.0.1",
     "micromark-util-character": "^2.1.1",
@@ -56,12 +57,13 @@
     "@arethetypeswrong/cli": "^0.18.5",
     "@vitest/coverage-v8": "^4.1.10",
     "micromark": "^4.0.2",
+    "oxfmt": "^0.60.0",
     "publint": "^0.3.21",
     "rehype-stringify": "^10.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "remark-stringify": "^11.0.0",
-    "tsdown": "^0.22.12",
+    "tsdown": "^0.22.13",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
