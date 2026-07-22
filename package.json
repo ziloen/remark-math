@@ -1,6 +1,6 @@
 {
   "name": "@ziloen/remark-math",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Remark plugin to parse and stringify math with dollar and LaTeX delimiters",
   "keywords": [
     "latex",
