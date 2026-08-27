@@ -133,8 +133,8 @@ describe('inline math serialization scaling', () => {
 })
 
 describe('inline fence selection', () => {
-  const longTree = denseInlineMathTree(1_000, 'x'.repeat(1_000))
-  const dollarTree = denseInlineMathTree(1_000, 'a$b$$c$$$d')
+  const longTree = separatedInlineMathTree(1_000, 'x'.repeat(1_000))
+  const dollarTree = separatedInlineMathTree(1_000, 'a$b$$c$$$d')
 
   bench(
     '1,000 formulas with 1,000 dollar-free characters',
@@ -352,6 +352,16 @@ function denseInlineMathTree(count: number, value = 'x'): Root {
         })),
       },
     ],
+  }
+}
+
+function separatedInlineMathTree(count: number, value: string): Root {
+  return {
+    type: 'root',
+    children: Array.from({ length: count }, () => ({
+      type: 'paragraph' as const,
+      children: [{ type: 'inlineMath' as const, value }],
+    })),
   }
 }
 
