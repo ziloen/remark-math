@@ -144,6 +144,42 @@ describe('failed opener scaling', () => {
   }
 })
 
+describe('LaTeX text dispatch', () => {
+  const count = 10_000
+  const inputs = {
+    inline: String.raw`\(x\) `.repeat(count),
+    display: String.raw`\[x\] `.repeat(count),
+    ordinaryBackslash: String.raw`\x `.repeat(count),
+  }
+
+  for (const [kind, input] of Object.entries(inputs)) {
+    bench(
+      `${kind}: ${count.toLocaleString('en-US')} sequences`,
+      () => {
+        parseMathEvents(input)
+      },
+      steady,
+    )
+  }
+})
+
+describe('adversarial dollar fence scaling', () => {
+  for (const count of [50, 100, 200]) {
+    const input = Array.from(
+      { length: count },
+      (_, index) => '$'.repeat(index + 1) + 'x',
+    ).join(' ')
+
+    bench(
+      `${count.toLocaleString('en-US')} distinct fence sizes`,
+      () => {
+        parseMathEvents(input)
+      },
+      scaling,
+    )
+  }
+})
+
 function parseMathEvents(value: string): void {
   const parser = parse({ extensions: [math()] })
   postprocess(parser.document().write(preprocess()(value, undefined, true)))
