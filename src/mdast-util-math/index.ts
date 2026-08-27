@@ -31,49 +31,65 @@ interface InternalMathData {
 }
 
 export function mathFromMarkdown(options?: Options | null): Extension {
+  const addHastData = options?.addHastData ?? true
+  const enterMathFlowHandle: Handle = function (token): void {
+    enterMathFlow.call(this, token, addHastData)
+  }
   const enterMathText: Handle = function (token): void {
-    enterInline.call(this, token, false)
+    enterInline.call(this, token, false, addHastData)
   }
   const enterDisplayMathText: Handle = function (token): void {
-    enterInline.call(this, token, true)
+    enterInline.call(this, token, true, addHastData)
+  }
+  const exitMathFlowHandle: Handle = function (token): void {
+    exitMathFlow.call(this, token, addHastData)
+  }
+  const exitInlineHandle: Handle = function (token): void {
+    exitInline.call(this, token, addHastData)
   }
 
   return {
     enter: {
-      mathFlow: enterMathFlow,
+      mathFlow: enterMathFlowHandle,
       mathFlowFenceMeta: enterMathFlowMeta,
       mathText: enterMathText,
       mathTextDisplay: enterDisplayMathText,
     },
     exit: {
-      mathFlow: exitMathFlow,
+      mathFlow: exitMathFlowHandle,
       mathFlowFence: exitMathFlowFence,
       mathFlowFenceMeta: exitMathFlowMeta,
       mathFlowValue: exitMathData,
-      mathText: exitInline,
-      mathTextDisplay: exitInline,
+      mathText: exitInlineHandle,
+      mathTextDisplay: exitInlineHandle,
       mathTextData: exitMathData,
     },
     transforms: [transformMath(options)],
   }
 }
 
-const enterMathFlow: Handle = function (token): void {
-  const code: Element = {
-    type: 'element',
-    tagName: 'code',
-    properties: { className: ['language-math', 'math-display'] },
-    children: [],
+function enterMathFlow(
+  this: CompileContext,
+  token: Token,
+  addHastData: boolean,
+): void {
+  const node: Math = {
+    type: 'math',
+    meta: null,
+    value: '',
   }
-  this.enter(
-    {
-      type: 'math',
-      meta: null,
-      value: '',
-      data: { hName: 'pre', hChildren: [code] },
-    } as Math,
-    token,
-  )
+
+  if (addHastData) {
+    const code: Element = {
+      type: 'element',
+      tagName: 'code',
+      properties: { className: ['language-math', 'math-display'] },
+      children: [],
+    }
+    node.data = { hName: 'pre', hChildren: [code] }
+  }
+
+  this.enter(node, token)
 }
 
 const enterMathFlowMeta: Handle = function (): void {
@@ -93,16 +109,24 @@ const exitMathFlowFence: Handle = function (): void {
   this.data.mathFlowInside = true
 }
 
-const exitMathFlow: Handle = function (token): void {
+function exitMathFlow(
+  this: CompileContext,
+  token: Token,
+  addHastData: boolean,
+): void {
   const value = this.resume().replace(/^(\r?\n|\r)|(\r?\n|\r)$/g, '')
   const node = this.stack[this.stack.length - 1] as Math
   assert(node.type === 'math')
   this.exit(token)
   node.value = value
-  const data = node.data as InternalMathData
-  const code = data.hChildren?.[0]
-  assert(code?.type === 'element' && code.tagName === 'code')
-  code.children.push({ type: 'text', value })
+
+  if (addHastData) {
+    const data = node.data as InternalMathData
+    const code = data.hChildren?.[0]
+    assert(code?.type === 'element' && code.tagName === 'code')
+    code.children.push({ type: 'text', value })
+  }
+
   this.data.mathFlowInside = undefined
 }
 
@@ -251,33 +275,44 @@ function enterInline(
   this: CompileContext,
   token: Token,
   display: boolean,
+  addHastData: boolean,
 ): void {
+  const data: InternalMathData = {
+    _displayMath: display || undefined,
+    _rawMath: this.sliceSerialize(token),
+  }
+  if (addHastData) {
+    data.hName = 'code'
+    data.hProperties = { className: ['language-math', 'math-inline'] }
+    data.hChildren = []
+  }
+
   this.enter(
     {
       type: 'inlineMath',
       value: '',
-      data: {
-        _displayMath: display || undefined,
-        _rawMath: this.sliceSerialize(token),
-        hName: 'code',
-        hProperties: { className: ['language-math', 'math-inline'] },
-        hChildren: [],
-      },
+      data,
     } as InlineMath,
     token,
   )
   this.buffer()
 }
 
-const exitInline: Handle = function (token): void {
+function exitInline(
+  this: CompileContext,
+  token: Token,
+  addHastData: boolean,
+): void {
   const value = this.resume()
   const node = this.stack[this.stack.length - 1] as InlineMath
   assert(node.type === 'inlineMath')
   this.exit(token)
   node.value = value
-  const data = node.data as InternalMathData
-  assert(data.hChildren)
-  data.hChildren.push({ type: 'text', value })
+  if (addHastData) {
+    const data = node.data as InternalMathData
+    assert(data.hChildren)
+    data.hChildren.push({ type: 'text', value })
+  }
 }
 
 const exitMathData: Handle = function (token): void {
@@ -517,6 +552,7 @@ function cleanNested(node: RootContent | PhrasingContent): void {
     const data = node.data as InternalMathData
     delete data._displayMath
     delete data._rawMath
+    if (Object.keys(data).length === 0) node.data = undefined
     return
   }
 

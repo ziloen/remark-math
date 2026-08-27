@@ -174,6 +174,16 @@ b`)
     )
   })
 
+  it('can omit hast data for lower-overhead mdast-only parsing', () => {
+    const tree = unified()
+      .use(remarkParse)
+      .use(remarkMath, { addHastData: false })
+      .parse('<span>$ignored$</span> x $a$\n\n$$\nb\n$$')
+
+    expect(countMath(tree)).toBe(2)
+    expect(JSON.stringify(tree)).not.toContain('"data"')
+  })
+
   it('falls back to inline parsing when a flow closer has trailing text', () => {
     const processor = unified().use(remarkParse).use(remarkMath)
     const dollar = processor.parse('$$\na\n$$ trailing')

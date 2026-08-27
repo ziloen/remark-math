@@ -23,6 +23,10 @@ const scaling = {
 }
 
 const parseProcessor = unified().use(remarkParse).use(remarkMath).freeze()
+const mdastOnlyParseProcessor = unified()
+  .use(remarkParse)
+  .use(remarkMath, { addHastData: false })
+  .freeze()
 const stringifyProcessor = unified()
   .use(remarkStringify)
   .use(remarkMath, {
@@ -49,6 +53,26 @@ describe('dense formula parsing', () => {
       )
     }
   }
+})
+
+describe('hast metadata allocation', () => {
+  const input = '$x$ '.repeat(10_000)
+
+  bench(
+    'default hast data: 10,000 formulas',
+    () => {
+      parseProcessor.parse(input)
+    },
+    steady,
+  )
+
+  bench(
+    'without hast data: 10,000 formulas',
+    () => {
+      mdastOnlyParseProcessor.parse(input)
+    },
+    steady,
+  )
 })
 
 describe('multiline resolver scaling', () => {

@@ -48,6 +48,9 @@ the TypeScript-only `Options` type.
 
 ```ts
 interface Options {
+  /** Add standard hast rendering data. Default: `true`. */
+  addHastData?: boolean;
+
   /** Enable `$...$`. Default: `true`. */
   singleDollarTextMath?: boolean;
 
@@ -55,6 +58,10 @@ interface Options {
   displayMathInText?: boolean;
 }
 ```
+
+Set `addHastData` to `false` when only mdast is needed. This avoids creating
+the per-formula hast element, properties, class list, children, and text nodes.
+The default remains compatible with the unified math ecosystem.
 
 When `displayMathInText` is enabled, direct display-math children split their
 paragraph into surrounding paragraphs and block `math` nodes. Display math in

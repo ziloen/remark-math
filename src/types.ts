@@ -1,6 +1,7 @@
 import type { Data, Literal } from 'mdast'
 
 export interface Options {
+  addHastData?: boolean
   singleDollarTextMath?: boolean
   displayMathInText?: boolean
 }
