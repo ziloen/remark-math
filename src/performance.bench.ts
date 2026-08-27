@@ -308,12 +308,31 @@ function validateBenchmarkFixtures(): void {
   const slashes = '\\'.repeat(32)
   assertEqual(countMathEvents(('$' + slashes + '$ ').repeat(3)), 3)
   assertEqual(countMathEvents(('\\(' + slashes + '\\) ').repeat(3)), 3)
+
+  const defaultPromoted = JSON.stringify(displayParseProcessor.parse('$$x$$'))
+  const mdastOnlyPromoted = JSON.stringify(
+    mdastOnlyDisplayParseProcessor.parse('$$x$$'),
+  )
+  assertIncludes(defaultPromoted, '"hName":"pre"', true)
+  assertIncludes(mdastOnlyPromoted, '"data"', false)
 }
 
 function assertEqual(actual: number, expected: number): void {
   if (actual !== expected) {
     throw new Error(
       `Invalid benchmark fixture: expected ${expected}, got ${actual}`,
+    )
+  }
+}
+
+function assertIncludes(
+  value: string,
+  search: string,
+  expected: boolean,
+): void {
+  if (value.includes(search) !== expected) {
+    throw new Error(
+      `Invalid benchmark fixture: expected ${JSON.stringify(search)} inclusion to be ${expected}`,
     )
   }
 }
