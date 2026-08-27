@@ -84,7 +84,7 @@ describe('multiline resolver scaling', () => {
       () => {
         parseMathEvents(input)
       },
-      scaling,
+      steady,
     )
   }
 })
@@ -201,6 +201,56 @@ describe('adversarial dollar fence scaling', () => {
   }
 })
 
+describe('flow continuation checks', () => {
+  const lines = 10_000
+  const inputs = {
+    dollar: '$$\n' + 'x\n'.repeat(lines) + '$$',
+    latex: '\\[\n' + 'x\n'.repeat(lines) + '\\]',
+  }
+
+  for (const [kind, input] of Object.entries(inputs)) {
+    bench(
+      `${kind}: ${lines.toLocaleString('en-US')} lines`,
+      () => {
+        parseMathEvents(input)
+      },
+      steady,
+    )
+  }
+})
+
+describe('block fence detection', () => {
+  const transform = mathFromMarkdown().transforms?.[0]
+  if (!transform) throw new Error('Expected a math AST transform')
+
+  bench(
+    '50,000 non-block inline fences',
+    () => {
+      transform(denseRawMathTree(50_000, '$x$'))
+    },
+    steady,
+  )
+})
+
+describe('backslash parity tracking', () => {
+  const count = 5_000
+  const slashes = '\\'.repeat(32)
+  const inputs = {
+    dollar: ('$' + slashes + '$ ').repeat(count),
+    latex: ('\\(' + slashes + '\\) ').repeat(count),
+  }
+
+  for (const [kind, input] of Object.entries(inputs)) {
+    bench(
+      `${kind}: ${count.toLocaleString('en-US')} formulas`,
+      () => {
+        parseMathEvents(input)
+      },
+      steady,
+    )
+  }
+})
+
 function parseMathEvents(value: string): void {
   const parser = parse({ extensions: [math()] })
   postprocess(parser.document().write(preprocess()(value, undefined, true)))
@@ -238,4 +288,27 @@ function deepTree(depth: number): Root {
   }
 
   return { type: 'root', children: [child] } as Root
+}
+
+function denseRawMathTree(count: number, raw: string): Root {
+  const position = {
+    start: { line: 1, column: 1, offset: 0 },
+    end: { line: 1, column: 2, offset: 1 },
+  }
+
+  return {
+    type: 'root',
+    children: [
+      {
+        type: 'paragraph',
+        children: Array.from({ length: count }, () => ({
+          type: 'inlineMath',
+          value: 'x',
+          data: { _rawMath: raw },
+          position,
+        })),
+        position,
+      },
+    ],
+  } as unknown as Root
 }
