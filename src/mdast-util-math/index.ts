@@ -500,7 +500,7 @@ function splitParagraph(
 
 function isBlockFence(raw: string | undefined): boolean {
   const value = raw as string
-  return value.startsWith('\\[') || /^\${2,}/.test(value)
+  return value.startsWith('\\[') || (value[0] === '$' && value[1] === '$')
 }
 
 function dollarFenceSizes(value: string): Set<number> | undefined {
