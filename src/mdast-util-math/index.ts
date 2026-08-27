@@ -300,7 +300,9 @@ function transformParent(parent: Parent, displayMathInText: boolean): void {
 
   for (const child of parent.children as Nodes[]) {
     if (child.type === 'paragraph') {
-      children.push(...splitParagraph(child, displayMathInText))
+      for (const splitChild of splitParagraph(child, displayMathInText)) {
+        children.push(splitChild)
+      }
       continue
     }
 
