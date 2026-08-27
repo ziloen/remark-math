@@ -14,6 +14,7 @@ import type { Options } from '../types.js'
 
 export function mathText(options?: Options | null): Construct {
   const single = options?.singleDollarTextMath ?? true
+  const exhaustedSizes = new WeakMap<TokenizeContext, Set<number>>()
 
   return {
     name: 'mathText',
@@ -32,6 +33,7 @@ export function mathText(options?: Options | null): Construct {
     const previousCode = self.previous
     let sizeOpen = 0
     let sizeClose = 0
+    let mismatchedSizes: Map<number, number> | undefined
     let hasContent = false
     let backslashRun = 0
     let candidate: Token
@@ -56,6 +58,7 @@ export function mathText(options?: Options | null): Construct {
 
       if (sizeOpen < 2 && !single) return nok(code)
       if (sizeOpen === 1 && isAsciiWord(previousCode)) return nok(code)
+      if (exhaustedSizes.get(self)?.has(sizeOpen)) return nok(code)
 
       effects.exit('mathTextSequence')
       if (sizeOpen === 2) {
@@ -67,7 +70,15 @@ export function mathText(options?: Options | null): Construct {
     }
 
     function between(code: number | null): State | undefined {
-      if (code === codes.eof) return nok(code)
+      if (code === codes.eof) {
+        const exhausted = new Set(exhaustedSizes.get(self))
+        exhaustedSizes.set(self, exhausted)
+        exhausted.add(sizeOpen)
+        for (const [size, occurrences] of mismatchedSizes ?? []) {
+          if (occurrences === 1) exhausted.add(size)
+        }
+        return nok(code)
+      }
 
       if (code === codes.dollarSign) {
         if (backslashRun % 2 === 1) {
@@ -147,6 +158,8 @@ export function mathText(options?: Options | null): Construct {
         return ok(code)
       }
 
+      mismatchedSizes ??= new Map()
+      mismatchedSizes.set(sizeClose, (mismatchedSizes.get(sizeClose) ?? 0) + 1)
       candidate.type = 'mathTextData'
       hasContent = true
       backslashRun = 0

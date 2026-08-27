@@ -85,6 +85,13 @@ describe('math syntax', () => {
     expect(mathTokens(String.raw`\[a`.repeat(200))).toEqual([])
   })
 
+  it('keeps later valid dollar fence sizes after an unclosed opener', () => {
+    expect(mathTokens('$open $$valid$$ $$$alsoValid$$$')).toEqual([
+      '$$valid$$',
+      '$$$alsoValid$$$',
+    ])
+  })
+
   it('scopes exhausted LaTeX closers to their text context and kind', () => {
     const extension = math()
 
