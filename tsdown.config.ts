@@ -1,4 +1,4 @@
-import {defineConfig} from 'tsdown'
+import { defineConfig } from 'tsdown'
 
 export default defineConfig({
   entry: ['src/index.ts'],
@@ -7,6 +7,6 @@ export default defineConfig({
   target: 'es2021',
   outDir: 'dist',
   clean: true,
-  dts: {sourcemap: true},
-  sourcemap: true
+  dts: { sourcemap: true },
+  sourcemap: true,
 })

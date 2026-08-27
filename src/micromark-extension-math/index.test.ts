@@ -1,23 +1,26 @@
-import {parse} from 'micromark/lib/parse.js'
-import {postprocess} from 'micromark/lib/postprocess.js'
-import {preprocess} from 'micromark/lib/preprocess.js'
-import type {Event} from 'micromark-util-types'
-import {describe, expect, it} from 'vitest'
-import type {Options} from '../types.js'
-import {math} from './index.js'
+import type { Event, Extension } from 'micromark-util-types'
+import { parse } from 'micromark/lib/parse.js'
+import { postprocess } from 'micromark/lib/postprocess.js'
+import { preprocess } from 'micromark/lib/preprocess.js'
+import { describe, expect, it } from 'vitest'
+import type { Options } from '../types.js'
+import { math } from './index.js'
 
-function mathTokens(value: string, options?: Options): string[] {
-  const parser = parse({extensions: [math(options)]})
+function mathTokens(
+  value: string,
+  options?: Options,
+  extension: Extension = math(options),
+): string[] {
+  const parser = parse({ extensions: [extension] })
   const events = postprocess(
-    parser.document().write(preprocess()(value, undefined, true))
+    parser.document().write(preprocess()(value, undefined, true)),
   )
 
   return events
     .filter(
       (event: Event) =>
         event[0] === 'enter' &&
-        (event[1].type === 'mathText' ||
-          event[1].type === 'mathTextDisplay')
+        (event[1].type === 'mathText' || event[1].type === 'mathTextDisplay'),
     )
     .map((event: Event) => event[2].sliceSerialize(event[1]))
 }
@@ -26,16 +29,16 @@ function flowTokens(value: string, disableIndented = false): string[] {
   const parser = parse({
     extensions: [
       math(),
-      ...(disableIndented
-        ? [{disable: {null: ['codeIndented']}}]
-        : [])
-    ]
+      ...(disableIndented ? [{ disable: { null: ['codeIndented'] } }] : []),
+    ],
   })
   const events = postprocess(
-    parser.document().write(preprocess()(value, undefined, true))
+    parser.document().write(preprocess()(value, undefined, true)),
   )
   return events
-    .filter((event: Event) => event[0] === 'enter' && event[1].type === 'mathFlow')
+    .filter(
+      (event: Event) => event[0] === 'enter' && event[1].type === 'mathFlow',
+    )
     .map((event: Event) => event[2].sliceSerialize(event[1]))
 }
 
@@ -49,28 +52,47 @@ describe('math syntax', () => {
   it('supports LaTeX delimiters with backslash parity', () => {
     expect(mathTokens(String.raw`\(x\) \[y\]`)).toEqual([
       String.raw`\(x\)`,
-      String.raw`\[y\]`
+      String.raw`\[y\]`,
     ])
     expect(mathTokens(String.raw`\\(x\\)`)).toEqual([])
-    expect(mathTokens(String.raw`\\\(x\\\)`)).toEqual([
-      String.raw`\(x\\\)`
+    expect(mathTokens(String.raw`\\\(x\\\)`)).toEqual([String.raw`\(x\\\)`])
+  })
+
+  it('keeps repeated unclosed LaTeX delimiters as text', () => {
+    expect(mathTokens(String.raw`\(a`.repeat(200))).toEqual([])
+    expect(mathTokens(String.raw`\[a`.repeat(200))).toEqual([])
+  })
+
+  it('scopes exhausted LaTeX closers to their text context and kind', () => {
+    const extension = math()
+
+    expect(
+      mathTokens(String.raw`\(open
+
+\(closed\)`),
+    ).toEqual([String.raw`\(closed\)`])
+    expect(mathTokens(String.raw`\(open \[display\]`)).toEqual([
+      String.raw`\[display\]`,
+    ])
+    expect(mathTokens(String.raw`\[open \(inline\)`)).toEqual([
+      String.raw`\(inline\)`,
+    ])
+    expect(mathTokens(String.raw`\(open`, undefined, extension)).toEqual([])
+    expect(mathTokens(String.raw`\(closed\)`, undefined, extension)).toEqual([
+      String.raw`\(closed\)`,
     ])
   })
 
   it('supports configured fence sizes and rejects empty or unclosed content', () => {
-    expect(mathTokens('$a$ $$b$$ $$$c$$$')).toEqual([
-      '$a$',
-      '$$b$$',
-      '$$$c$$$'
-    ])
+    expect(mathTokens('$a$ $$b$$ $$$c$$$')).toEqual(['$a$', '$$b$$', '$$$c$$$'])
     expect(
-      mathTokens('$a$ $$b$$ $$$c$$$', {singleDollarTextMath: false})
+      mathTokens('$a$ $$b$$ $$$c$$$', { singleDollarTextMath: false }),
     ).toEqual(['$$b$$', '$$$c$$$'])
     expect(mathTokens(String.raw`$$ \(\) \[\] $$$$$$`)).toEqual([])
     expect(mathTokens(String.raw`$ $ \( \) \[ \]`)).toEqual([
       '$ $',
       String.raw`\( \)`,
-      String.raw`\[ \]`
+      String.raw`\[ \]`,
     ])
     expect(mathTokens(String.raw`$a \(b \[c`)).toEqual([])
   })

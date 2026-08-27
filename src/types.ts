@@ -1,5 +1,5 @@
-import type {Literal} from 'mdast'
-import type {Data} from 'unist'
+import type { Literal } from 'mdast'
+import type { Data } from 'unist'
 
 export interface Options {
   singleDollarTextMath?: boolean

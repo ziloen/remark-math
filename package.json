@@ -31,12 +31,14 @@
   },
   "scripts": {
     "build": "tsdown",
+    "benchmark": "vitest bench --run",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "check": "npm run verify && publint && node scripts/check-package.mjs",
     "verify": "npm run typecheck && npm run test && npm run coverage && npm run build",
+    "fmt": "oxfmt",
     "prepack": "npm run check"
   },
   "dependencies": {
@@ -54,15 +56,16 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "micromark": "^3.2.0",
-    "publint": "^0.3.21",
+    "oxfmt": "^0.65.0",
+    "publint": "^0.3.24",
     "rehype-stringify": "^9.0.4",
     "remark-parse": "^10.0.2",
     "remark-rehype": "^10.1.0",
     "remark-stringify": "^10.0.3",
-    "tsdown": "^0.22.12",
+    "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
