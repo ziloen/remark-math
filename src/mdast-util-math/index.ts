@@ -305,7 +305,7 @@ function transformParent(parent: Parent, displayMathInText: boolean): void {
     }
 
     if ('children' in child) transformParent(child, displayMathInText)
-    cleanNested(child as RootContent | PhrasingContent)
+    if (child.type === 'inlineMath') cleanNested(child)
     children.push(child)
   }
 

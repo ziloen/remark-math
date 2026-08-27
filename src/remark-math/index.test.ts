@@ -108,6 +108,8 @@ b`)
       ],
     })
     expect(countMath(paragraph)).toBe(1)
+    expect(JSON.stringify(tree)).not.toContain('_displayMath')
+    expect(JSON.stringify(tree)).not.toContain('_rawMath')
   })
 
   it('promotes display fences that occupy their own source line', () => {
