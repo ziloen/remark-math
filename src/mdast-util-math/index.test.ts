@@ -77,12 +77,10 @@ describe('math mdast extensions', () => {
   })
 
   it('does not reuse paragraph visibility across stringify calls', () => {
-    const processor = unified()
-      .use(remarkStringify)
-      .use(remarkMath, {
-        displayMathInText: true,
-        singleDollarTextMath: false,
-      })
+    const processor = unified().use(remarkStringify).use(remarkMath, {
+      displayMathInText: true,
+      singleDollarTextMath: false,
+    })
     const paragraph = {
       type: 'paragraph' as const,
       children: [{ type: 'inlineMath' as const, value: 'a' }],
@@ -180,6 +178,24 @@ describe('math mdast extensions', () => {
         { type: 'inlineMath', value: 'b' },
       ],
     })
+  })
+
+  it('preserves one-sided, blank, and multiline inline padding', () => {
+    const tree = unified()
+      .use(remarkParse)
+      .use(remarkMath)
+      .parse(
+        '$a b $ | $ a b$ | $ a b $ | $ $ | \\(a\r\nb\\) | \\[ a\r\nb \\] | \\(\r\na\r\n\\)',
+      )
+    const paragraph = tree.children[0]
+    expect(paragraph.type).toBe('paragraph')
+    if (paragraph.type !== 'paragraph') return
+
+    expect(
+      paragraph.children
+        .filter((child) => child.type === 'inlineMath')
+        .map((child) => child.value),
+    ).toEqual(['a b ', ' a b', 'a b', ' ', 'a\r\nb', 'a\r\nb', 'a'])
   })
 
   it('covers serializer option and padding edge combinations', () => {

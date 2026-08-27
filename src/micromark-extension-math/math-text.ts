@@ -4,8 +4,8 @@ import { codes, types } from 'micromark-util-symbol'
 import type {
   Construct,
   Effects,
+  Point,
   Previous,
-  Resolver,
   State,
   Token,
   TokenizeContext,
@@ -19,7 +19,6 @@ export function mathText(options?: Options | null): Construct {
   return {
     name: 'mathText',
     previous: previousDollar,
-    resolve: resolveMathText,
     tokenize: tokenize,
   }
 
@@ -34,18 +33,18 @@ export function mathText(options?: Options | null): Construct {
     let sizeOpen = 0
     let sizeClose = 0
     let mismatchedSizes: Map<number, number> | undefined
-    let hasContent = false
     let backslashRun = 0
-    let candidate: Token
+    let candidateStart: Point
     let container: Token
-    let opener: Token
+    let dataToken: Token | undefined
+    let multiline = false
+    let openerEnd: Point
 
     return start
 
     function start(code: number | null): State | undefined {
       assert(code === codes.dollarSign)
       container = effects.enter('mathText')
-      opener = effects.enter('mathTextSequence')
       return open(code)
     }
 
@@ -60,11 +59,10 @@ export function mathText(options?: Options | null): Construct {
       if (sizeOpen === 1 && isAsciiWord(previousCode)) return nok(code)
       if (exhaustedSizes.get(self)?.has(sizeOpen)) return nok(code)
 
-      effects.exit('mathTextSequence')
       if (sizeOpen === 2) {
         container.type = 'mathTextDisplay'
-        opener.type = 'mathTextDisplaySequence'
       }
+      openerEnd = self.now()
 
       return between(code)
     }
@@ -80,60 +78,31 @@ export function mathText(options?: Options | null): Construct {
         return nok(code)
       }
 
+      if (multiline && !dataToken && !markdownLineEnding(code)) {
+        dataToken = effects.enter('mathTextData')
+      }
+
       if (code === codes.dollarSign) {
         if (backslashRun % 2 === 1) {
-          effects.enter('mathTextData')
           effects.consume(code)
-          effects.exit('mathTextData')
-          hasContent = true
           backslashRun = 0
           return between
         }
 
-        candidate = effects.enter(
-          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence',
-        )
+        candidateStart = self.now()
         sizeClose = 0
         return close(code)
       }
 
-      if (code === codes.space) {
-        effects.enter('space')
-        effects.consume(code)
-        effects.exit('space')
-        hasContent = true
-        backslashRun = 0
-        return between
-      }
-
       if (markdownLineEnding(code)) {
-        effects.enter(types.lineEnding)
-        effects.consume(code)
-        effects.exit(types.lineEnding)
-        hasContent = true
+        consumeLineEnding(code)
         backslashRun = 0
         return between
-      }
-
-      effects.enter('mathTextData')
-      return data(code)
-    }
-
-    function data(code: number | null): State | undefined {
-      if (
-        code === codes.eof ||
-        code === codes.space ||
-        code === codes.dollarSign ||
-        markdownLineEnding(code)
-      ) {
-        effects.exit('mathTextData')
-        return between(code)
       }
 
       effects.consume(code)
-      hasContent = true
       backslashRun = code === codes.backslash ? backslashRun + 1 : 0
-      return data
+      return between
     }
 
     function close(code: number | null): State | undefined {
@@ -151,19 +120,64 @@ export function mathText(options?: Options | null): Construct {
           return nok(code)
         }
 
-        effects.exit(
-          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence',
-        )
-        effects.exit(sizeOpen === 2 ? 'mathTextDisplay' : 'mathText')
+        if (multiline) closeMultiline()
+        effects.exit(container.type)
         return ok(code)
       }
 
       mismatchedSizes ??= new Map()
       mismatchedSizes.set(sizeClose, (mismatchedSizes.get(sizeClose) ?? 0) + 1)
-      candidate.type = 'mathTextData'
-      hasContent = true
       backslashRun = 0
-      return data(code)
+      return between(code)
+    }
+
+    function consumeLineEnding(code: number): void {
+      const start = self.now()
+      if (!multiline) {
+        // Single-line math stays opaque. Multiline tokens need contiguous
+        // child ranges so micromark can link the chunks across line endings.
+        emitRange(
+          sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence',
+          container.start,
+          openerEnd,
+        )
+        emitRange('mathTextData', openerEnd, start)
+        multiline = true
+      } else {
+        assert(dataToken)
+        effects.exit('mathTextData')
+      }
+
+      effects.enter(types.lineEnding)
+      effects.consume(code)
+      effects.exit(types.lineEnding)
+      dataToken = undefined
+    }
+
+    function closeMultiline(): void {
+      const sequenceType =
+        sizeOpen === 2 ? 'mathTextDisplaySequence' : 'mathTextSequence'
+      assert(dataToken)
+      if (dataToken.start.offset === candidateStart.offset) {
+        dataToken.type = sequenceType
+        effects.exit(sequenceType)
+        return
+      }
+
+      effects.exit('mathTextData')
+      // The candidate fence was consumed while data was open. Reassign its
+      // range to the closing sequence now that its size is known to match.
+      dataToken.end = candidateStart
+      const closer = effects.enter(sequenceType)
+      closer.start = candidateStart
+      effects.exit(sequenceType)
+    }
+
+    function emitRange(type: Token['type'], start: Point, end: Point): void {
+      if (start.offset === end.offset) return
+      const token = effects.enter(type)
+      token.start = start
+      effects.exit(type).end = end
     }
   }
 }
@@ -173,7 +187,6 @@ export function latexMathText(): Construct {
 
   return {
     name: 'mathTextLatexCombined',
-    resolve: resolveMathText,
     tokenize,
   }
 
@@ -186,22 +199,21 @@ export function latexMathText(): Construct {
     const self = this
     let closeMarker: number = codes.rightParenthesis
     let containerType: 'mathText' | 'mathTextDisplay' = 'mathText'
-    let sequenceType: 'mathTextSequence' | 'mathTextDisplaySequence' =
-      'mathTextSequence'
     let exhaustedBit = 0
     let hasContent = false
     let backslashRun = 0
     let slashesBefore = 0
-    let candidate: Token
+    let candidateStart: Point
     let container: Token
-    let opener: Token
+    let dataToken: Token | undefined
+    let multiline = false
+    let openerEnd: Point
 
     return start
 
     function start(code: number | null): State | undefined {
       assert(code === codes.backslash)
       container = effects.enter('mathText')
-      opener = effects.enter('mathTextSequence')
       effects.consume(code)
       return openMarker
     }
@@ -212,9 +224,7 @@ export function latexMathText(): Construct {
 
       const disabled = self.parser.constructs.disable.null
       assert(disabled)
-      const legacyName = display
-        ? 'mathTextDisplayLatex'
-        : 'mathTextLatex'
+      const legacyName = display ? 'mathTextDisplayLatex' : 'mathTextLatex'
       if (disabled.includes(legacyName)) return nok(code)
 
       exhaustedBit = display ? 2 : 1
@@ -223,12 +233,10 @@ export function latexMathText(): Construct {
       if (display) {
         closeMarker = codes.rightSquareBracket
         containerType = 'mathTextDisplay'
-        sequenceType = 'mathTextDisplaySequence'
       }
       effects.consume(code)
-      effects.exit('mathTextSequence')
       container.type = containerType
-      opener.type = sequenceType
+      openerEnd = self.now()
       return content
     }
 
@@ -238,124 +246,102 @@ export function latexMathText(): Construct {
         return nok(code)
       }
 
+      if (multiline && !dataToken && !markdownLineEnding(code)) {
+        dataToken = effects.enter('mathTextData')
+      }
+
       if (code === codes.backslash) {
         slashesBefore = backslashRun
-        candidate = effects.enter(sequenceType)
+        candidateStart = self.now()
         effects.consume(code)
         return afterSlash
       }
 
-      if (code === codes.space) {
-        effects.enter('space')
-        effects.consume(code)
-        effects.exit('space')
-        hasContent = true
-        backslashRun = 0
-        return content
-      }
-
       if (markdownLineEnding(code)) {
-        effects.enter(types.lineEnding)
-        effects.consume(code)
-        effects.exit(types.lineEnding)
+        consumeLineEnding(code)
         hasContent = true
         backslashRun = 0
         return content
-      }
-
-      effects.enter('mathTextData')
-      return data(code)
-    }
-
-    function data(code: number | null): State | undefined {
-      if (
-        code === codes.eof ||
-        code === codes.space ||
-        code === codes.backslash ||
-        markdownLineEnding(code)
-      ) {
-        effects.exit('mathTextData')
-        return content(code)
       }
 
       effects.consume(code)
       hasContent = true
       backslashRun = 0
-      return data
+      return content
     }
 
     function afterSlash(code: number | null): State | undefined {
       if (code === closeMarker && slashesBefore % 2 === 0) {
         if (!hasContent) return nok(code)
-        effects.consume(code)
-        effects.exit(sequenceType)
+        if (multiline) {
+          closeMultiline(code)
+        } else {
+          effects.consume(code)
+        }
         effects.exit(containerType)
         return ok
       }
 
-      candidate.type = 'mathTextData'
-      effects.exit('mathTextData')
       hasContent = true
       backslashRun = slashesBefore + 1
       return content(code)
     }
-  }
-}
 
-const resolveMathText: Resolver = (events) => {
-  let tailExitIndex = events.length - 4
-  let headEnterIndex = 3
-
-  if (
-    (events[headEnterIndex][1].type === types.lineEnding ||
-      events[headEnterIndex][1].type === 'space') &&
-    (events[tailExitIndex][1].type === types.lineEnding ||
-      events[tailExitIndex][1].type === 'space')
-  ) {
-    let index = headEnterIndex
-    while (++index < tailExitIndex) {
-      if (events[index][1].type === 'mathTextData') {
-        events[tailExitIndex][1].type = 'mathTextPadding'
-        events[headEnterIndex][1].type = 'mathTextPadding'
-        headEnterIndex += 2
-        tailExitIndex -= 2
-        break
+    function consumeLineEnding(code: number): void {
+      const start = self.now()
+      if (!multiline) {
+        // Single-line math stays opaque. Multiline tokens need contiguous
+        // child ranges so micromark can link the chunks across line endings.
+        emitRange(
+          containerType === 'mathTextDisplay'
+            ? 'mathTextDisplaySequence'
+            : 'mathTextSequence',
+          container.start,
+          openerEnd,
+        )
+        emitRange('mathTextData', openerEnd, start)
+        multiline = true
+      } else {
+        assert(dataToken)
+        effects.exit('mathTextData')
       }
+
+      effects.enter(types.lineEnding)
+      effects.consume(code)
+      effects.exit(types.lineEnding)
+      dataToken = undefined
+    }
+
+    function closeMultiline(code: number): void {
+      const sequenceType =
+        containerType === 'mathTextDisplay'
+          ? 'mathTextDisplaySequence'
+          : 'mathTextSequence'
+      assert(dataToken)
+      if (dataToken.start.offset === candidateStart.offset) {
+        dataToken.type = sequenceType
+        effects.consume(code)
+        effects.exit(sequenceType)
+        return
+      }
+
+      effects.exit('mathTextData')
+      // The candidate slash was consumed while data was open. Reassign it to
+      // the closing sequence after the matching bracket is known.
+      dataToken.end = candidateStart
+      const closer = effects.enter(sequenceType)
+      closer.start = candidateStart
+      effects.consume(code)
+      effects.exit(sequenceType)
+    }
+
+    function emitRange(type: Token['type'], start: Point, end: Point): void {
+      if (start.offset === end.offset) return
+      const token = effects.enter(type)
+      token.start = start
+      effects.exit(type).end = end
     }
   }
-
-  let readIndex = headEnterIndex
-  let writeIndex = headEnterIndex
-
-  while (readIndex <= tailExitIndex) {
-    if (events[readIndex][1].type === types.lineEnding) {
-      events[writeIndex++] = events[readIndex++]
-      continue
-    }
-
-    const enterIndex = readIndex
-    while (
-      ++readIndex <= tailExitIndex &&
-      events[readIndex][1].type !== types.lineEnding
-    ) {
-      // Find the next line ending or the end of the content events.
-    }
-
-    events[enterIndex][1].type = 'mathTextData'
-    if (readIndex !== enterIndex + 2) {
-      events[enterIndex][1].end = events[readIndex - 1][1].end
-    }
-    events[writeIndex++] = events[enterIndex]
-    events[writeIndex++] = events[enterIndex + 1]
-  }
-
-  const removed = tailExitIndex + 1 - writeIndex
-  if (removed > 0) {
-    events.copyWithin(writeIndex, tailExitIndex + 1)
-    events.length -= removed
-  }
-
-  return events
 }
 
 const previousDollar: Previous = function (code) {

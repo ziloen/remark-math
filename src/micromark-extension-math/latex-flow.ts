@@ -1,6 +1,6 @@
 import { ok as assert } from 'devlop'
 import { factorySpace } from 'micromark-factory-space'
-import { markdownLineEnding } from 'micromark-util-character'
+import { markdownLineEnding, markdownSpace } from 'micromark-util-character'
 import { codes, constants, types } from 'micromark-util-symbol'
 import type {
   Construct,
@@ -32,7 +32,6 @@ function tokenize(
     tail?.[1].type === types.linePrefix
       ? tail[2].sliceSerialize(tail[1], true).length
       : 0
-
   return start
 
   function start(code: number | null): State | undefined {
@@ -59,6 +58,9 @@ function tokenize(
   }
 
   function beforeContinuation(code: number | null): State | undefined {
+    if (code !== codes.backslash && !markdownSpace(code)) {
+      return contentStart(code)
+    }
     return effects.attempt(
       { partial: true, tokenize: tokenizeClose },
       afterClose,

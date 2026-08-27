@@ -275,9 +275,10 @@ function enterInline(
   display: boolean,
   addHastData: boolean,
 ): void {
+  const raw = this.sliceSerialize(token)
   const data: InternalMathData = {
     _displayMath: display || undefined,
-    _rawMath: this.sliceSerialize(token),
+    _rawMath: raw,
   }
   if (addHastData) {
     data.hName = 'code'
@@ -288,12 +289,11 @@ function enterInline(
   this.enter(
     {
       type: 'inlineMath',
-      value: '',
+      value: inlineValue(raw),
       data,
     } as InlineMath,
     token,
   )
-  this.buffer()
 }
 
 function exitInline(
@@ -301,19 +301,44 @@ function exitInline(
   token: Token,
   addHastData: boolean,
 ): void {
-  const value = this.resume()
   const node = this.stack[this.stack.length - 1] as InlineMath
   assert(node.type === 'inlineMath')
   this.exit(token)
-  node.value = value
   if (addHastData) {
     const data = node.data as InternalMathData
     assert(data.hChildren)
-    data.hChildren.push({ type: 'text', value })
+    data.hChildren.push({ type: 'text', value: node.value })
   }
 }
 
+function inlineValue(raw: string): string {
+  let size = 2
+  if (raw.charCodeAt(0) === 36) {
+    size = 0
+    while (raw.charCodeAt(size) === 36) size++
+  }
+
+  let value = raw.slice(size, -size)
+  if (
+    isMathWhitespace(value.charCodeAt(0)) &&
+    isMathWhitespace(value.charCodeAt(value.length - 1)) &&
+    /[^ \r\n]/.test(value)
+  ) {
+    // Math padding removes one whitespace token from each edge, not the full
+    // run. A CRLF pair is one line-ending token.
+    const start = value.startsWith('\r\n') ? 2 : 1
+    const end = value.endsWith('\r\n') ? 2 : 1
+    value = value.slice(start, -end)
+  }
+  return value
+}
+
+function isMathWhitespace(code: number): boolean {
+  return code === 32 || code === 10 || code === 13
+}
+
 const exitMathData: Handle = function (token): void {
+  if (this.stack[this.stack.length - 1].type === 'inlineMath') return
   this.config.enter.data.call(this, token)
   this.config.exit.data.call(this, token)
 }

@@ -1,6 +1,6 @@
 import { ok as assert } from 'devlop'
 import { factorySpace } from 'micromark-factory-space'
-import { markdownLineEnding } from 'micromark-util-character'
+import { markdownLineEnding, markdownSpace } from 'micromark-util-character'
 import { codes, constants, types } from 'micromark-util-symbol'
 import type {
   Construct,
@@ -83,6 +83,9 @@ function tokenizeMathFlow(
   }
 
   function beforeContinuation(code: number | null): State | undefined {
+    if (code !== codes.dollarSign && !markdownSpace(code)) {
+      return contentStart(code)
+    }
     return effects.attempt(
       { partial: true, tokenize: tokenizeClosingFence },
       afterClose,

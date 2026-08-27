@@ -133,14 +133,37 @@ describe('math syntax', () => {
     expect(mathTokens('`$a$`')).toEqual([])
   })
 
-  it('preserves resolved padding and CRLF segment positions', () => {
+  it('keeps single-line content opaque and multiline ranges contiguous', () => {
+    expect(resolvedSegments('$a b$')).toEqual([])
     expect(resolvedSegments('$ a\r\nb $')).toEqual([
-      { type: 'mathTextPadding', value: ' ', start: 1, end: 2 },
-      { type: 'mathTextData', value: 'a', start: 2, end: 3 },
+      { type: 'mathTextData', value: ' a', start: 1, end: 3 },
       { type: 'lineEnding', value: '\r\n', start: 3, end: 5 },
-      { type: 'mathTextData', value: 'b', start: 5, end: 6 },
-      { type: 'mathTextPadding', value: ' ', start: 6, end: 7 },
+      { type: 'mathTextData', value: 'b ', start: 5, end: 7 },
     ])
+    expect(resolvedSegments('$a\nb\nc$')).toEqual([
+      { type: 'mathTextData', value: 'a', start: 1, end: 2 },
+      { type: 'lineEnding', value: '\n', start: 2, end: 3 },
+      { type: 'mathTextData', value: 'b', start: 3, end: 4 },
+      { type: 'lineEnding', value: '\n', start: 4, end: 5 },
+      { type: 'mathTextData', value: 'c', start: 5, end: 6 },
+    ])
+    expect(resolvedSegments('\\(a\nb\nc\\)')).toEqual([
+      { type: 'mathTextData', value: 'a', start: 2, end: 3 },
+      { type: 'lineEnding', value: '\n', start: 3, end: 4 },
+      { type: 'mathTextData', value: 'b', start: 4, end: 5 },
+      { type: 'lineEnding', value: '\n', start: 5, end: 6 },
+      { type: 'mathTextData', value: 'c', start: 6, end: 7 },
+    ])
+  })
+
+  it('preserves escaped and mismatched markers in opaque content', () => {
+    expect(resolvedSegments('$a b\r\nc d$')).toEqual([
+      { type: 'mathTextData', value: 'a b', start: 1, end: 4 },
+      { type: 'lineEnding', value: '\r\n', start: 4, end: 6 },
+      { type: 'mathTextData', value: 'c d', start: 6, end: 9 },
+    ])
+    expect(mathTokens(String.raw`$a\$ b$`)).toEqual([String.raw`$a\$ b$`])
+    expect(mathTokens('$$$a $$ b$$$')).toEqual(['$$$a $$ b$$$'])
   })
 
   it('supports disabling either legacy LaTeX text construct name', () => {
