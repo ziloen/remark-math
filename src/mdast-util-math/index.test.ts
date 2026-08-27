@@ -76,6 +76,24 @@ describe('math mdast extensions', () => {
     expect(reparsed.children[0]?.type).toBe('paragraph')
   })
 
+  it('does not reuse paragraph visibility across stringify calls', () => {
+    const processor = unified()
+      .use(remarkStringify)
+      .use(remarkMath, {
+        displayMathInText: true,
+        singleDollarTextMath: false,
+      })
+    const paragraph = {
+      type: 'paragraph' as const,
+      children: [{ type: 'inlineMath' as const, value: 'a' }],
+    }
+    const tree = { type: 'root' as const, children: [paragraph] }
+
+    expect(processor.stringify(tree)).toBe('\\(a\\)\n')
+    paragraph.children.push({ type: 'inlineMath', value: 'b' })
+    expect(processor.stringify(tree)).toBe('$$$a$$$$$$b$$$\n')
+  })
+
   it('chooses safe inline and flow fences around dollar content', () => {
     const processor = unified().use(remarkStringify).use(remarkMath)
     const markdown = processor.stringify({

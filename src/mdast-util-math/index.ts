@@ -109,6 +109,10 @@ const exitMathFlow: Handle = function (token): void {
 export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
   const single = options?.singleDollarTextMath ?? true
   const displayMathInText = options?.displayMathInText ?? false
+  const singleVisibleChildByState = new WeakMap<
+    object,
+    WeakMap<Paragraph, boolean>
+  >()
 
   const math: ToMarkdownHandle = (node: Math, _parent, state, info): string => {
     const raw = node.value
@@ -164,9 +168,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
       displayMathInText &&
       size > 1 &&
       parent?.type === 'paragraph' &&
-      parent.children.filter(
-        (child) => child.type !== 'text' || child.value.trim() !== '',
-      ).length === 1
+      hasSingleVisibleChild(parent, state)
     ) {
       return '\\(' + value + '\\)'
     }
@@ -204,6 +206,30 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
     peek?: () => string
   }
   inlineMathHandler.peek = (): string => '$'
+
+  function hasSingleVisibleChild(parent: Paragraph, state: object): boolean {
+    let stateCache = singleVisibleChildByState.get(state)
+    if (!stateCache) {
+      stateCache = new WeakMap()
+      singleVisibleChildByState.set(state, stateCache)
+    }
+
+    const cached = stateCache.get(parent)
+    if (cached !== undefined) return cached
+
+    let found = false
+    for (const child of parent.children) {
+      if (child.type === 'text' && child.value.trim() === '') continue
+      if (found) {
+        stateCache.set(parent, false)
+        return false
+      }
+      found = true
+    }
+
+    stateCache.set(parent, found)
+    return found
+  }
 
   return {
     unsafe: [
