@@ -320,26 +320,37 @@ const exitMathData: Handle = function (token): void {
 
 function transformMath(options?: Options | null): Transform {
   const displayMathInText = options?.displayMathInText ?? false
+  const addHastData = options?.addHastData ?? true
 
   return function transform(tree: Root): Root {
     restoreInlineHtmlMath(tree)
-    transformParent(tree, displayMathInText)
+    transformParent(tree, displayMathInText, addHastData)
     return tree
   }
 }
 
-function transformParent(parent: Parent, displayMathInText: boolean): void {
+function transformParent(
+  parent: Parent,
+  displayMathInText: boolean,
+  addHastData: boolean,
+): void {
   const children: Nodes[] = []
 
   for (const child of parent.children as Nodes[]) {
     if (child.type === 'paragraph') {
-      for (const splitChild of splitParagraph(child, displayMathInText)) {
+      for (const splitChild of splitParagraph(
+        child,
+        displayMathInText,
+        addHastData,
+      )) {
         children.push(splitChild)
       }
       continue
     }
 
-    if ('children' in child) transformParent(child, displayMathInText)
+    if ('children' in child) {
+      transformParent(child, displayMathInText, addHastData)
+    }
     if (child.type === 'inlineMath') cleanNested(child)
     children.push(child)
   }
@@ -435,6 +446,7 @@ function updateHtmlStack(value: string, tags: string[]): void {
 function splitParagraph(
   paragraph: Paragraph,
   displayMathInText: boolean,
+  addHastData: boolean,
 ): RootContent[] {
   const result: RootContent[] = []
   let phrasing: PhrasingContent[] = []
@@ -483,7 +495,7 @@ function splitParagraph(
         stripLeadingBoundary = true
       }
       flush()
-      result.push(promote(child))
+      result.push(promote(child, addHastData))
       continue
     }
 
@@ -553,20 +565,25 @@ function stripTrailingBoundary(children: PhrasingContent[]): void {
   children.length -= Number(last.value === '')
 }
 
-function promote(node: InlineMath): Math {
-  const code: Element = {
-    type: 'element',
-    tagName: 'code',
-    properties: { className: ['language-math', 'math-display'] },
-    children: [{ type: 'text', value: node.value }],
-  }
-  return {
+function promote(node: InlineMath, addHastData: boolean): Math {
+  const result: Math = {
     type: 'math',
     meta: null,
     value: node.value,
-    data: { hName: 'pre', hChildren: [code] },
     position: node.position,
   }
+
+  if (addHastData) {
+    const code: Element = {
+      type: 'element',
+      tagName: 'code',
+      properties: { className: ['language-math', 'math-display'] },
+      children: [{ type: 'text', value: node.value }],
+    }
+    result.data = { hName: 'pre', hChildren: [code] }
+  }
+
+  return result
 }
 
 function cleanNested(node: RootContent | PhrasingContent): void {

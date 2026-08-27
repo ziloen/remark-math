@@ -177,10 +177,15 @@ b`)
   it('can omit hast data for lower-overhead mdast-only parsing', () => {
     const tree = unified()
       .use(remarkParse)
-      .use(remarkMath, { addHastData: false })
-      .parse('<span>$ignored$</span> x $a$\n\n$$\nb\n$$')
+      .use(remarkMath, { addHastData: false, displayMathInText: true })
+      .parse(
+        '<span>$ignored$</span> x $a$\n\n' +
+          'before $$promoted$$ after\n\n' +
+          '$$isolated$$\n\n' +
+          '$$\nb\n$$',
+      )
 
-    expect(countMath(tree)).toBe(2)
+    expect(countMath(tree)).toBe(4)
     expect(JSON.stringify(tree)).not.toContain('"data"')
   })
 
