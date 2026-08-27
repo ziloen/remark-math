@@ -40,6 +40,28 @@ function flowTokens(value: string, disableIndented = false): string[] {
     .map((event: Event) => event[2].sliceSerialize(event[1]))
 }
 
+function resolvedSegments(value: string): object[] {
+  const parser = parse({ extensions: [math()] })
+  const events = postprocess(
+    parser.document().write(preprocess()(value, undefined, true)),
+  )
+
+  return events
+    .filter(
+      (event: Event) =>
+        event[0] === 'enter' &&
+        (event[1].type === 'mathTextData' ||
+          event[1].type === 'mathTextPadding' ||
+          event[1].type === 'lineEnding'),
+    )
+    .map((event: Event) => ({
+      end: event[1].end.offset,
+      start: event[1].start.offset,
+      type: event[1].type,
+      value: event[2].sliceSerialize(event[1]),
+    }))
+}
+
 describe('math syntax', () => {
   it('uses VS Code dollar boundary rules', () => {
     expect(mathTokens('$x$ ($y$), $123, $123')).toEqual(['$x$', '$y$'])
@@ -100,6 +122,16 @@ describe('math syntax', () => {
     expect(mathTokens(String.raw`$a\\$ b$`)).toEqual([String.raw`$a\\$`])
     expect(mathTokens('$a\nb$')).toEqual(['$a\nb$'])
     expect(mathTokens('`$a$`')).toEqual([])
+  })
+
+  it('preserves resolved padding and CRLF segment positions', () => {
+    expect(resolvedSegments('$ a\r\nb $')).toEqual([
+      { type: 'mathTextPadding', value: ' ', start: 1, end: 2 },
+      { type: 'mathTextData', value: 'a', start: 2, end: 3 },
+      { type: 'lineEnding', value: '\r\n', start: 3, end: 5 },
+      { type: 'mathTextData', value: 'b', start: 5, end: 6 },
+      { type: 'mathTextPadding', value: ' ', start: 6, end: 7 },
+    ])
   })
 
   it('falls through from same-line LaTeX flow and honors disabled indented code', () => {

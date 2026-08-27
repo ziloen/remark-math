@@ -274,7 +274,6 @@ export function latexMathText(display: boolean): Construct {
 const resolveMathText: Resolver = (events) => {
   let tailExitIndex = events.length - 4
   let headEnterIndex = 3
-  let enter: number | undefined
 
   if (
     (events[headEnterIndex][1].type === types.lineEnding ||
@@ -294,29 +293,35 @@ const resolveMathText: Resolver = (events) => {
     }
   }
 
-  let index = headEnterIndex - 1
-  tailExitIndex++
-  while (++index <= tailExitIndex) {
-    if (enter === undefined) {
-      if (
-        index !== tailExitIndex &&
-        events[index][1].type !== types.lineEnding
-      ) {
-        enter = index
-      }
-    } else if (
-      index === tailExitIndex ||
-      events[index][1].type === types.lineEnding
-    ) {
-      events[enter][1].type = 'mathTextData'
-      if (index !== enter + 2) {
-        events[enter][1].end = events[index - 1][1].end
-        events.splice(enter + 2, index - enter - 2)
-        tailExitIndex -= index - enter - 2
-        index = enter + 2
-      }
-      enter = undefined
+  let readIndex = headEnterIndex
+  let writeIndex = headEnterIndex
+
+  while (readIndex <= tailExitIndex) {
+    if (events[readIndex][1].type === types.lineEnding) {
+      events[writeIndex++] = events[readIndex++]
+      continue
     }
+
+    const enterIndex = readIndex
+    while (
+      ++readIndex <= tailExitIndex &&
+      events[readIndex][1].type !== types.lineEnding
+    ) {
+      // Find the next line ending or the end of the content events.
+    }
+
+    events[enterIndex][1].type = 'mathTextData'
+    if (readIndex !== enterIndex + 2) {
+      events[enterIndex][1].end = events[readIndex - 1][1].end
+    }
+    events[writeIndex++] = events[enterIndex]
+    events[writeIndex++] = events[enterIndex + 1]
+  }
+
+  const removed = tailExitIndex + 1 - writeIndex
+  if (removed > 0) {
+    events.copyWithin(writeIndex, tailExitIndex + 1)
+    events.length -= removed
   }
 
   return events
