@@ -7,9 +7,11 @@ import { math } from './index.js'
 function mathTokens(
   value: string,
   options?: Options,
-  extension: Extension = math(options),
+  extension: Extension | Extension[] = math(options),
 ): string[] {
-  const parser = parse({ extensions: [extension] })
+  const parser = parse({
+    extensions: Array.isArray(extension) ? extension : [extension],
+  })
   const events = postprocess(
     parser.document().write(preprocess()(value, undefined, true)),
   )
@@ -132,6 +134,23 @@ describe('math syntax', () => {
       { type: 'mathTextData', value: 'b', start: 5, end: 6 },
       { type: 'mathTextPadding', value: ' ', start: 6, end: 7 },
     ])
+  })
+
+  it('supports disabling either legacy LaTeX text construct name', () => {
+    const input = String.raw`\(inline\) \[display\]`
+
+    expect(
+      mathTokens(input, undefined, [
+        math(),
+        { disable: { null: ['mathTextLatex'] } },
+      ]),
+    ).toEqual([String.raw`\[display\]`])
+    expect(
+      mathTokens(input, undefined, [
+        math(),
+        { disable: { null: ['mathTextDisplayLatex'] } },
+      ]),
+    ).toEqual([String.raw`\(inline\)`])
   })
 
   it('falls through from same-line LaTeX flow and honors disabled indented code', () => {

@@ -155,16 +155,11 @@ export function mathText(options?: Options | null): Construct {
   }
 }
 
-export function latexMathText(display: boolean): Construct {
-  const exhausted = new WeakSet<TokenizeContext>()
-  const closeMarker = display
-    ? codes.rightSquareBracket
-    : codes.rightParenthesis
-  const containerType = display ? 'mathTextDisplay' : 'mathText'
-  const sequenceType = display ? 'mathTextDisplaySequence' : 'mathTextSequence'
+export function latexMathText(): Construct {
+  const exhausted = new WeakMap<TokenizeContext, number>()
 
   return {
-    name: display ? 'mathTextDisplayLatex' : 'mathTextLatex',
+    name: 'mathTextLatexCombined',
     resolve: resolveMathText,
     tokenize,
   }
@@ -176,34 +171,57 @@ export function latexMathText(display: boolean): Construct {
     nok: State,
   ): State {
     const self = this
+    let closeMarker: number = codes.rightParenthesis
+    let containerType: 'mathText' | 'mathTextDisplay' = 'mathText'
+    let sequenceType: 'mathTextSequence' | 'mathTextDisplaySequence' =
+      'mathTextSequence'
+    let exhaustedBit = 0
     let hasContent = false
     let backslashRun = 0
     let slashesBefore = 0
     let candidate: Token
-
-    if (exhausted.has(self)) return nok
+    let container: Token
+    let opener: Token
 
     return start
 
     function start(code: number | null): State | undefined {
       assert(code === codes.backslash)
-      effects.enter(containerType)
-      effects.enter(sequenceType)
+      container = effects.enter('mathText')
+      opener = effects.enter('mathTextSequence')
       effects.consume(code)
       return openMarker
     }
 
     function openMarker(code: number | null): State | undefined {
-      const expected = display ? codes.leftSquareBracket : codes.leftParenthesis
-      if (code !== expected) return nok(code)
+      const display = code === codes.leftSquareBracket
+      if (!display && code !== codes.leftParenthesis) return nok(code)
+
+      const disabled = self.parser.constructs.disable.null
+      assert(disabled)
+      const legacyName = display
+        ? 'mathTextDisplayLatex'
+        : 'mathTextLatex'
+      if (disabled.includes(legacyName)) return nok(code)
+
+      exhaustedBit = display ? 2 : 1
+      if (((exhausted.get(self) ?? 0) & exhaustedBit) !== 0) return nok(code)
+
+      if (display) {
+        closeMarker = codes.rightSquareBracket
+        containerType = 'mathTextDisplay'
+        sequenceType = 'mathTextDisplaySequence'
+      }
       effects.consume(code)
-      effects.exit(sequenceType)
+      effects.exit('mathTextSequence')
+      container.type = containerType
+      opener.type = sequenceType
       return content
     }
 
     function content(code: number | null): State | undefined {
       if (code === codes.eof) {
-        exhausted.add(self)
+        exhausted.set(self, (exhausted.get(self) ?? 0) | exhaustedBit)
         return nok(code)
       }
 

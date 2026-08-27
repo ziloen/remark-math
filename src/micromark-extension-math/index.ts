@@ -13,7 +13,7 @@ export function math(options?: Options | null): Extension {
     },
     text: {
       [codes.dollarSign]: mathText(options),
-      [codes.backslash]: [latexMathText(false), latexMathText(true)],
+      [codes.backslash]: latexMathText(),
     },
   }
 }
