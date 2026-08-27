@@ -1,5 +1,6 @@
 import type { Parent, Root } from 'mdast'
 import { parse, postprocess, preprocess } from 'micromark'
+import type { Event } from 'micromark-util-types'
 import remarkParse from 'remark-parse'
 import remarkStringify from 'remark-stringify'
 import { unified } from 'unified'
@@ -16,16 +17,24 @@ const steady = {
 }
 
 const scaling = {
-  iterations: 3,
-  time: 0,
-  warmupIterations: 1,
-  warmupTime: 0,
+  iterations: 10,
+  time: 300,
+  warmupIterations: 3,
+  warmupTime: 100,
 }
 
 const parseProcessor = unified().use(remarkParse).use(remarkMath).freeze()
 const mdastOnlyParseProcessor = unified()
   .use(remarkParse)
   .use(remarkMath, { addHastData: false })
+  .freeze()
+const displayParseProcessor = unified()
+  .use(remarkParse)
+  .use(remarkMath, { displayMathInText: true })
+  .freeze()
+const mdastOnlyDisplayParseProcessor = unified()
+  .use(remarkParse)
+  .use(remarkMath, { addHastData: false, displayMathInText: true })
   .freeze()
 const stringifyProcessor = unified()
   .use(remarkStringify)
@@ -34,6 +43,9 @@ const stringifyProcessor = unified()
     singleDollarTextMath: false,
   })
   .freeze()
+const mathParser = parse({ extensions: [math()] })
+
+validateBenchmarkFixtures()
 
 describe('dense formula parsing', () => {
   for (const count of [1_000, 10_000]) {
@@ -57,6 +69,7 @@ describe('dense formula parsing', () => {
 
 describe('hast metadata allocation', () => {
   const input = '$x$ '.repeat(10_000)
+  const promotedInput = '$$x$$ '.repeat(10_000)
 
   bench(
     'default hast data: 10,000 formulas',
@@ -70,6 +83,22 @@ describe('hast metadata allocation', () => {
     'without hast data: 10,000 formulas',
     () => {
       mdastOnlyParseProcessor.parse(input)
+    },
+    steady,
+  )
+
+  bench(
+    'default hast data: 10,000 promoted formulas',
+    () => {
+      displayParseProcessor.parse(promotedInput)
+    },
+    steady,
+  )
+
+  bench(
+    'without hast data: 10,000 promoted formulas',
+    () => {
+      mdastOnlyDisplayParseProcessor.parse(promotedInput)
     },
     steady,
   )
@@ -132,10 +161,13 @@ describe('nested transform scaling', () => {
   if (!transform) throw new Error('Expected a math AST transform')
 
   for (const depth of [100, 400, 1_600]) {
+    const tree = deepTree(depth)
+    transform(tree)
+
     bench(
-      `${depth.toLocaleString('en-US')} parents`,
+      `${depth.toLocaleString('en-US')} stable parents`,
       () => {
-        transform(deepTree(depth))
+        transform(tree)
       },
       scaling,
     )
@@ -148,7 +180,7 @@ describe('failed opener scaling', () => {
     const ordinaryBackslash = String.raw`\x `.repeat(count)
 
     bench(
-      `unclosed dollar: ${count.toLocaleString('en-US')} openers`,
+      `word-boundary-rejected dollar: ${count.toLocaleString('en-US')} openers`,
       () => {
         parseMathEvents(unclosedDollar)
       },
@@ -186,13 +218,11 @@ describe('LaTeX text dispatch', () => {
 
 describe('adversarial dollar fence scaling', () => {
   for (const count of [50, 100, 200]) {
-    const input = Array.from(
-      { length: count },
-      (_, index) => '$'.repeat(index + 1) + 'x',
-    ).join(' ')
+    const input = distinctDollarFenceInput(count)
+    const bytes = input.length
 
     bench(
-      `${count.toLocaleString('en-US')} distinct fence sizes`,
+      `${count.toLocaleString('en-US')} distinct fence sizes (${bytes.toLocaleString('en-US')} bytes)`,
       () => {
         parseMathEvents(input)
       },
@@ -224,7 +254,15 @@ describe('block fence detection', () => {
   if (!transform) throw new Error('Expected a math AST transform')
 
   bench(
-    '50,000 non-block inline fences',
+    '50,000 non-block inline fences: fixture only',
+    () => {
+      denseRawMathTree(50_000, '$x$')
+    },
+    steady,
+  )
+
+  bench(
+    '50,000 non-block inline fences: fixture + transform',
     () => {
       transform(denseRawMathTree(50_000, '$x$'))
     },
@@ -251,9 +289,55 @@ describe('backslash parity tracking', () => {
   }
 })
 
-function parseMathEvents(value: string): void {
-  const parser = parse({ extensions: [math()] })
-  postprocess(parser.document().write(preprocess()(value, undefined, true)))
+function parseMathEvents(value: string): Event[] {
+  return postprocess(
+    mathParser.document().write(preprocess()(value, undefined, true)),
+  )
+}
+
+function validateBenchmarkFixtures(): void {
+  assertEqual(countMathEvents('$x$ '.repeat(3), 'mathText'), 3)
+  assertEqual(countMathEvents('$$x$$ '.repeat(3), 'mathTextDisplay'), 3)
+  assertEqual(countMathEvents(String.raw`\(x\) `.repeat(3), 'mathText'), 3)
+  assertEqual(countMathEvents('$\nx + y\n$', 'mathText'), 1)
+  assertEqual(countMathEvents('$x '.repeat(3)), 0)
+  assertEqual(countMathEvents(distinctDollarFenceInput(10)), 0)
+  assertEqual(countMathEvents('$$\nx\n$$', 'mathFlow'), 1)
+  assertEqual(countMathEvents('\\[\nx\n\\]', 'mathFlow'), 1)
+
+  const slashes = '\\'.repeat(32)
+  assertEqual(countMathEvents(('$' + slashes + '$ ').repeat(3)), 3)
+  assertEqual(countMathEvents(('\\(' + slashes + '\\) ').repeat(3)), 3)
+}
+
+function assertEqual(actual: number, expected: number): void {
+  if (actual !== expected) {
+    throw new Error(
+      `Invalid benchmark fixture: expected ${expected}, got ${actual}`,
+    )
+  }
+}
+
+function countMathEvents(
+  value: string,
+  expectedType?: 'mathFlow' | 'mathText' | 'mathTextDisplay',
+): number {
+  return parseMathEvents(value).filter(
+    (event) =>
+      event[0] === 'enter' &&
+      (expectedType
+        ? event[1].type === expectedType
+        : event[1].type === 'mathFlow' ||
+          event[1].type === 'mathText' ||
+          event[1].type === 'mathTextDisplay'),
+  ).length
+}
+
+function distinctDollarFenceInput(count: number): string {
+  return Array.from(
+    { length: count },
+    (_, index) => '$'.repeat(index + 1) + 'x',
+  ).join(' ')
 }
 
 function denseInlineMathTree(count: number, value = 'x'): Root {
