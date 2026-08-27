@@ -172,6 +172,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
   ): string => {
     let value = node.value
     let size = single ? 1 : 2
+    const unsafeFenceSizes = dollarFenceSizes(value)
 
     while (true) {
       if (displayMathInText && size === 2) {
@@ -179,10 +180,7 @@ export function mathToMarkdown(options?: Options | null): ToMarkdownExtension {
         continue
       }
 
-      const unsafeFence = new RegExp(
-        '(^|[^$])' + '\\$'.repeat(size) + '([^$]|$)',
-      ).test(value)
-      if (!unsafeFence) break
+      if (!unsafeFenceSizes?.has(size)) break
       size++
     }
 
@@ -503,6 +501,30 @@ function splitParagraph(
 function isBlockFence(raw: string | undefined): boolean {
   const value = raw as string
   return value.startsWith('\\[') || /^\${2,}/.test(value)
+}
+
+function dollarFenceSizes(value: string): Set<number> | undefined {
+  const firstDollar = value.indexOf('$')
+  if (firstDollar === -1) return undefined
+
+  let result: Set<number> | undefined
+  let size = 0
+
+  for (let index = firstDollar; index < value.length; index++) {
+    if (value.charCodeAt(index) === 36) {
+      size++
+    } else if (size > 0) {
+      const sizes = (result ??= new Set())
+      sizes.add(size)
+      size = 0
+    }
+  }
+
+  if (size > 0) {
+    const sizes = (result ??= new Set())
+    sizes.add(size)
+  }
+  return result
 }
 
 function isIsolatedLine(paragraph: Paragraph, index: number): boolean {

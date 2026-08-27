@@ -110,6 +110,23 @@ describe('math mdast extensions', () => {
     expect(markdown).toBe('$$ $a$ $$\n\n$$$\n$$\n$$$\n')
   })
 
+  it('chooses the first unused inline dollar run size', () => {
+    const markdown = unified()
+      .use(remarkStringify)
+      .use(remarkMath)
+      .stringify({
+        type: 'root',
+        children: [
+          {
+            type: 'paragraph',
+            children: [{ type: 'inlineMath', value: 'a$bc$$de$$$f' }],
+          },
+        ],
+      })
+
+    expect(markdown).toBe('$$$$a$bc$$de$$$f$$$$\n')
+  })
+
   it('serializes flow metadata and normalizes unsafe inline line endings', () => {
     const processor = unified().use(remarkStringify).use(remarkMath)
     const markdown = processor.stringify({

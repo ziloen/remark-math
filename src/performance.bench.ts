@@ -103,6 +103,27 @@ describe('inline math serialization scaling', () => {
   }
 })
 
+describe('inline fence selection', () => {
+  const longTree = denseInlineMathTree(1_000, 'x'.repeat(1_000))
+  const dollarTree = denseInlineMathTree(1_000, 'a$b$$c$$$d')
+
+  bench(
+    '1,000 formulas with 1,000 dollar-free characters',
+    () => {
+      stringifyProcessor.stringify(longTree)
+    },
+    steady,
+  )
+
+  bench(
+    '1,000 formulas with dollar runs 1 through 3',
+    () => {
+      stringifyProcessor.stringify(dollarTree)
+    },
+    steady,
+  )
+})
+
 describe('nested transform scaling', () => {
   const transform = mathFromMarkdown({
     displayMathInText: true,
@@ -185,7 +206,7 @@ function parseMathEvents(value: string): void {
   postprocess(parser.document().write(preprocess()(value, undefined, true)))
 }
 
-function denseInlineMathTree(count: number): Root {
+function denseInlineMathTree(count: number, value = 'x'): Root {
   return {
     type: 'root',
     children: [
@@ -193,7 +214,7 @@ function denseInlineMathTree(count: number): Root {
         type: 'paragraph',
         children: Array.from({ length: count }, () => ({
           type: 'inlineMath' as const,
-          value: 'x',
+          value,
         })),
       },
     ],
