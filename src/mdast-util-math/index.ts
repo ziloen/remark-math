@@ -274,7 +274,9 @@ function transformParent(parent: Parent, displayMathInText: boolean): void {
 
   for (const child of parent.children as Nodes[]) {
     if (child.type === 'paragraph') {
-      children.push(...splitParagraph(child, displayMathInText))
+      for (const splitChild of splitParagraph(child, displayMathInText)) {
+        children.push(splitChild)
+      }
       continue
     }
 
@@ -437,9 +439,9 @@ function splitParagraph(
   return result
 }
 
-function isBlockFence(raw: string | undefined): boolean {
-  const value = raw as string
-  return value.startsWith('\\[') || /^\${2,}/.test(value)
+function isBlockFence(value: string | undefined): boolean {
+  if (!value) return false
+  return value.startsWith('\\[') || (value[0] === "$" && value[1] === "$")
 }
 
 function isIsolatedLine(paragraph: Paragraph, index: number): boolean {
